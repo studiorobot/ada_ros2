@@ -214,18 +214,29 @@ def generate_launch_description():
     )
 
     # Get URDF via xacro
+    #robot_description_content = Command(
+    #    [
+    #        PathJoinSubstitution([FindExecutable(name="xacro")]),
+            # " ",
+    #        PathJoinSubstitution(
+    #            str(moveit_config.package_path / "config/ada.urdf.xacro")
+    #        ),
+            # " ",
+    #        "sim:=",
+    #        sim,
+    #    ]
+    #)
     robot_description_content = Command(
         [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            FindExecutable(name="xacro"),
             " ",
-            PathJoinSubstitution(
-                str(moveit_config.package_path / "config/ada.urdf.xacro")
-            ),
+            PathJoinSubstitution([str(moveit_config.package_path), "config", "ada.urdf.xacro"]),
             " ",
             "sim:=",
             sim,
         ]
     )
+
     robot_description = {
         "robot_description": ParameterValue(robot_description_content, value_type=str)
     }
@@ -234,6 +245,7 @@ def generate_launch_description():
     servo_config = PathJoinSubstitution(
         [str(moveit_config.package_path), "config", servo_file]
     )
+
     ld.add_action(
         Node(
             package="moveit_servo",
