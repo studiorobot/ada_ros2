@@ -1,0 +1,57 @@
+[0mcreating TARGET_EXE_NAME: '000-Getting_started_01-api_creation'[0m
+[0mcreating TARGET_EXE_NAME: '000-Getting_started_02-protobuf_object_manipulation'[0m
+[0mcreating TARGET_EXE_NAME: '000-Getting_started_03-api_mechanism'[0m
+[0mcreating TARGET_EXE_NAME: '000-Getting_started_04-error_management'[0m
+[0mcreating TARGET_EXE_NAME: '000-Getting_started_05-notification'[0m
+[0mcreating TARGET_EXE_NAME: '100-Overview_01-devices_routing'[0m
+[0mcreating TARGET_EXE_NAME: '100-Overview_02-protection_zones_configuration'[0m
+[0mcreating TARGET_EXE_NAME: '102-High_level_movement_01-move_angular_and_cartesian'[0m
+[0mcreating TARGET_EXE_NAME: '102-High_level_movement_02-sequence'[0m
+[0mcreating TARGET_EXE_NAME: '102-High_level_movement_03-twist_command'[0m
+[0mcreating TARGET_EXE_NAME: '102-High_level_movement_04-send_joint_speeds'[0m
+[0mcreating TARGET_EXE_NAME: '103-Gen3_uart_bridge_01-uart_bridge'[0m
+[0mcreating TARGET_EXE_NAME: '104-Gen3_gpio_bridge_01-gpio_bridge'[0m
+[0mcreating TARGET_EXE_NAME: '105-Gen3_i2c_bridge_01-i2c_bridge'[0m
+[0mcreating TARGET_EXE_NAME: '106-Gripper_command_01-gripper_command'[0m
+[0mcreating TARGET_EXE_NAME: '107-Gripper_low_level_command_01-gripper_low_level_command'[0m
+[0mcreating TARGET_EXE_NAME: '108-Gen3_torque_control_01-torque_control_cyclic'[0m
+[0mcreating TARGET_EXE_NAME: '109-Gen3_ethernet_bridge_01-ethernet_bridge_configuration'[0m
+[0mcreating TARGET_EXE_NAME: '110-Waypoints_01-send_angular_wapoint_trajectory'[0m
+[0mcreating TARGET_EXE_NAME: '110-Waypoints_02-send_cartesian_waypoint_trajectory'[0m
+[0mcreating TARGET_EXE_NAME: '111-Kinematics_01-compute-kinematics'[0m
+[0mcreating TARGET_EXE_NAME: '200-Actuator_low_level_control_01-actuator_low_level_velocity_control'[0m
+[0mcreating TARGET_EXE_NAME: '500-Gen3_vision_configuration_01_vision_intrinsics'[0m
+[0mcreating TARGET_EXE_NAME: '500-Gen3_vision_configuration_02_vision_extrinsics'[0m
+[0mcreating TARGET_EXE_NAME: '500-Gen3_vision_configuration_03_vision_sensor_focus_action'[0m
+[0mcreating TARGET_EXE_NAME: '500-Gen3_vision_configuration_04_vision_sensor_options'[0m
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/102-High_level_movement/04-send_joint_speeds.cpp:[m[K In function ‘[01m[Kbool example_move_to_start_position(Kinova::Api::Base::BaseClient*)[m[K’:
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/102-High_level_movement/04-send_joint_speeds.cpp:86:30:[m[K [01;35m[Kwarning: [m[K‘[01m[Kvoid Kinova::Api::Base::BaseClient::PlayJointTrajectory(const Kinova::Api::Base::ConstrainedJointAngles&, uint32_t, const Kinova::Api::RouterClientSendOptions&)[m[K’ is deprecated [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wdeprecated-declarations-Wdeprecated-declarations]8;;[m[K]
+   86 |     [01;35m[Kbase->PlayJointTrajectory(constrained_joint_angles)[m[K;
+      |     [01;35m[K~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+In file included from [01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/102-High_level_movement/04-send_joint_speeds.cpp:13[m[K:
+[01m[K/home/gurnoork/.conan/data/kortex_api_cpp/2.7.0-r.5/kortex/stable/package/c023db9fc677d4d0b3bd0c20f71385e4cf8a1220/include/client_stubs/BaseClientRpc.h:478:41:[m[K [01;36m[Knote: [m[Kdeclared here
+  478 |                         DEPRECATED void [01;36m[KPlayJointTrajectory[m[K(const ConstrainedJointAngles& constrainedjointangles, uint32_t deviceId = 0, const RouterClientSendOptions& options = {false, 0, 3000});
+      |                                         [01;36m[K^~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/110-Waypoints/01-send_angular_wapoint_trajectory.cpp:[m[K In function ‘[01m[Kbool example_trajectory(Kinova::Api::Base::BaseClient*)[m[K’:
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/110-Waypoints/01-send_angular_wapoint_trajectory.cpp:148:31:[m[K [01;35m[Kwarning: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kstd::vector<std::array<float, 7> >::size_type[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Wsign-compare]8;;[m[K]
+  148 |     for(auto index = 0; [01;35m[Kindex < jointPoses.size()[m[K; ++index)
+      |                         [01;35m[K~~~~~~^~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/110-Waypoints/01-send_angular_wapoint_trajectory.cpp:157:52:[m[K [01;35m[Kwarning: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kuint32_t[m[K’ {aka ‘[01m[Kunsigned int[m[K’} [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Wsign-compare]8;;[m[K]
+  157 |                 for(auto angleIndex = 0;[01;35m[KangleIndex < degreesOfFreedom[m[K; ++angleIndex)
+      |                                         [01;35m[K~~~~~~~~~~~^~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/110-Waypoints/01-send_angular_wapoint_trajectory.cpp:[m[K In function ‘[01m[Kint main(int, char**)[m[K’:
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/110-Waypoints/01-send_angular_wapoint_trajectory.cpp:351:10:[m[K [01;35m[Kwarning: [m[Kunused variable ‘[01m[Kbase_cyclic[m[K’ [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wunused-variable-Wunused-variable]8;;[m[K]
+  351 |     auto [01;35m[Kbase_cyclic[m[K = new k_api::BaseCyclic::BaseCyclicClient(router);
+      |          [01;35m[K^~~~~~~~~~~[m[K
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/100-Overview/02-protection_zones_configuration.cpp:[m[K In function ‘[01m[Kvoid move_in_front_of_protection_zone(Kinova::Api::Base::BaseClient*)[m[K’:
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/100-Overview/02-protection_zones_configuration.cpp:170:34:[m[K [01;35m[Kwarning: [m[K‘[01m[Kvoid Kinova::Api::Base::BaseClient::PlayCartesianTrajectory(const Kinova::Api::Base::ConstrainedPose&, uint32_t, const Kinova::Api::RouterClientSendOptions&)[m[K’ is deprecated [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wdeprecated-declarations-Wdeprecated-declarations]8;;[m[K]
+  170 |     [01;35m[Kbase->PlayCartesianTrajectory(constrained_pose)[m[K;
+      |     [01;35m[K~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~[m[K
+In file included from [01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/100-Overview/02-protection_zones_configuration.cpp:13[m[K:
+[01m[K/home/gurnoork/.conan/data/kortex_api_cpp/2.7.0-r.5/kortex/stable/package/c023db9fc677d4d0b3bd0c20f71385e4cf8a1220/include/client_stubs/BaseClientRpc.h:442:41:[m[K [01;36m[Knote: [m[Kdeclared here
+  442 |                         DEPRECATED void [01;36m[KPlayCartesianTrajectory[m[K(const ConstrainedPose& constrainedpose, uint32_t deviceId = 0, const RouterClientSendOptions& options = {false, 0, 3000});
+      |                                         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/108-Gen3_torque_control/01-torque_control_cyclic.cpp:[m[K In function ‘[01m[Kbool example_cyclic_torque_control(Kinova::Api::Base::BaseClient*, Kinova::Api::BaseCyclic::BaseCyclicClient*, Kinova::Api::ActuatorConfig::ActuatorConfigClient*)[m[K’:
+[01m[K/home/Shared/delicious/ada/workspace/src/ada_ros2/api_cpp/examples/108-Gen3_torque_control/01-torque_control_cyclic.cpp:277:39:[m[K [01;35m[Kwarning: [m[Kcomparison of integer expressions of different signedness: ‘[01m[Kint[m[K’ and ‘[01m[Kunsigned int[m[K’ [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wsign-compare-Wsign-compare]8;;[m[K]
+  277 |                 for (int idx = 0; [01;35m[Kidx < actuator_count[m[K; idx++)
+      |                                   [01;35m[K~~~~^~~~~~~~~~~~~~~~[m[K

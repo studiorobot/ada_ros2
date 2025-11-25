@@ -1,0 +1,1 @@
+/home/Shared/delicious/ada/workspace/src/ada_ros2/ada_moveit/launch/rsp.launch.py

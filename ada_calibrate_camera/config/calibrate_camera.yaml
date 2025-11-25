@@ -5,7 +5,7 @@ calibrate_camera:
   ros__parameters:
     # Frame names
     robot_end_effector_frame: "forkTip"
-    extrinsics_base_frame: "j2n6s200_end_effector"
+    extrinsics_base_frame: "j2n6s200_end_effector" #"ada_end_effector_link" # gurnoork edit
 
     # Whether to run camera calibration online or not
     run_online: true

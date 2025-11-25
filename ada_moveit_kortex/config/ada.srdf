@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="ada">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    <group name="manipulator">
+        <chain base_link="ada_base_link" tip_link="ada_end_effector_link"/>
+    </group>
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="Home" group="manipulator">
+        <joint name="ada_joint_1" value="0" />
+        <joint name="ada_joint_2" value="0.26" />
+        <joint name="ada_joint_3" value="3.14" />
+        <joint name="ada_joint_4" value="-2.27" />
+        <joint name="ada_joint_5" value="0" />
+        <joint name="ada_joint_6" value="0.96" />
+        <joint name="ada_joint_7" value="1.57" />
+    </group_state>
+    <group_state name="Retract" group="manipulator">
+        <joint name="ada_joint_1" value="0" />
+        <joint name="ada_joint_2" value="-0.35" />
+        <joint name="ada_joint_3" value="3.14" />
+        <joint name="ada_joint_4" value="-2.54" />
+        <joint name="ada_joint_5" value="0" />
+        <joint name="ada_joint_6" value="-0.87" />
+        <joint name="ada_joint_7" value="1.57" />
+    </group_state>
+    <group_state name="Vertical" group="manipulator">
+        <joint name="ada_joint_1" value="0" />
+        <joint name="ada_joint_2" value="0" />
+        <joint name="ada_joint_3" value="0" />
+        <joint name="ada_joint_4" value="0" />
+        <joint name="ada_joint_5" value="0" />
+        <joint name="ada_joint_6" value="0" />
+        <joint name="ada_joint_7" value="0" />
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <virtual_joint name="world_to_root" type="fixed" parent_frame="world" child_link="root"/>
+    <!--PASSIVE JOINT: Purpose: this element is used to mark joints that are not actuated-->
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <disable_collisions link1="ada_base_link" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_spherical_wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_half_arm_2_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_spherical_wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_spherical_wrist_2_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_half_arm_2_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_spherical_wrist_2_link" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="ada_spherical_wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="FT" link2="FTArmMount" reason="Never"/>
+    <disable_collisions link1="FT" link2="FTMount" reason="Adjacent"/>
+    <disable_collisions link1="FT" link2="enclosureBottom" reason="Never"/>
+    <disable_collisions link1="FT" link2="enclosureTop" reason="Never"/>
+    <disable_collisions link1="FT" link2="forkHandle" reason="Never"/>
+    <disable_collisions link1="FT" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="FT" link2="forque" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_spherical_wrist_2_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="FT" link2="nano" reason="Never"/>
+    <disable_collisions link1="FT" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="FT" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="FT" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="FTMount" reason="Adjacent"/>
+    <disable_collisions link1="FTArmMount" link2="enclosureBottom" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="enclosureTop" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="forkHandle" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="forque" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_spherical_wrist_2_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="nano" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="FTArmMount" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="enclosureBottom" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="enclosureTop" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="forkHandle" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="forque" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_spherical_wrist_2_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="nano" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="FTMount" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="enclosureTop" reason="Adjacent"/>
+    <disable_collisions link1="enclosureBottom" link2="forkHandle" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="forque" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_forearm_link" reason="User"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="nano" reason="Adjacent"/>
+    <disable_collisions link1="enclosureBottom" link2="nanoMount" reason="Adjacent"/>
+    <disable_collisions link1="enclosureBottom" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="enclosureBottom" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="forkHandle" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="forque" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="nano" reason="Default"/>
+    <disable_collisions link1="enclosureTop" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="enclosureTop" link2="cameraMount" reason="Adjacent"/>
+    <disable_collisions link1="enclosureTop" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="forque" reason="Adjacent"/>
+    <disable_collisions link1="forkHandle" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="ada_half_arm_1_link" reason="Default"/>
+    <disable_collisions link1="forkHandle" link2="ada_half_arm_2_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandle" link2="ada_shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandle" link2="ada_spherical_wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandle" link2="ada_end_effector_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandle" link2="nano" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="forkHandle" link2="forkHandleCover" reason="Adjacent"/>
+    <disable_collisions link1="forkHandleCover" link2="ada_half_arm_2_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandleCover" link2="ada_shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandleCover" link2="ada_spherical_wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandleCover" link2="ada_spherical_wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="forkHandleCover" link2="ada_end_effector_link" reason="Adjacent"/>
+    <disable_collisions link1="forkTine" link2="forque" reason="Adjacent"/>
+    <disable_collisions link1="forkTine" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="nano" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="forkTine" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="forque" link2="nano" reason="Never"/>
+    <disable_collisions link1="forque" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="forque" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="forque" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_bracelet_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_base_link" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_half_arm_1_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_base_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_base_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_forearm_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_bracelet_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_half_arm_1_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_forearm_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_half_arm_2_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="nanoMount" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_spherical_wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_half_arm_2_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="ada_end_effector_link" reason="Adjacent"/>
+    <disable_collisions link1="ada_shoulder_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_shoulder_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="ada_end_effector_link" reason="User"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_1_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_end_effector_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_end_effector_link" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="ada_end_effector_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_end_effector_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="nano" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="nano" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="nano" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="nanoMount" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="nanoMount" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="cameraMount" link2="uncalibrated_camera_link" reason="Adjacent"/>
+    <disable_collisions link1="frontStabilizer" link2="enclosureBottom" reason="Adjacent"/>
+    <disable_collisions link1="ada_half_arm_1_link" link2="frontStabilizer" reason="Adjacent"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="enclosureBottom" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="enclosureTop" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="forkHandle" reason="Adjacent"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="forkTine" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="forque" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_base_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_bracelet_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_forearm_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_half_arm_1_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_half_arm_2_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_shoulder_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_spherical_wrist_1_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="ada_end_effector_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="nano" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="nanoMount" reason="Adjacent"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="forkHandleCover" reason="Adjacent"/>
+    <disable_collisions link1="ada_spherical_wrist_2_link" link2="frontStabilizer" reason="Adjacent"/>
+    <disable_collisions link1="nano" link2="nanoMount" reason="Never"/>
+    <disable_collisions link1="nano" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="nano" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="nanoMount" link2="cameraMount" reason="Never"/>
+    <disable_collisions link1="nanoMount" link2="uncalibrated_camera_link" reason="Never"/>
+    <disable_collisions link1="cameraMount" link2="uncalibrated_camera_link" reason="Adjacent"/>
+    <disable_collisions link1="frontStabilizer" link2="enclosureBottom" reason="Adjacent"/>
+    <disable_collisions link1="ada_end_effector_link" link2="frontStabilizer" reason="Adjacent"/>
+    <!-- The below links are close enough to each other that MoveIt Servo thinks a collision is always imminent -->
+    <disable_collisions link1="frontStabilizer" link2="enclosureTop" reason="Never"/>
+    <disable_collisions link1="nano" link2="frontStabilizer" reason="Never"/>
+    <disable_collisions link1="cameraMount" link2="screwHeadLeft" reason="Adjacent"/>
+    <disable_collisions link1="cameraMount" link2="screwHeadRight" reason="Adjacent"/>
+    <disable_collisions link1="uncalibrated_camera_link" link2="screwHeadLeft" reason="Adjacent"/>
+    <disable_collisions link1="uncalibrated_camera_link" link2="screwHeadRight" reason="Adjacent"/>
+</robot>

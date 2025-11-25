@@ -1,0 +1,8 @@
+source;share/KinovaExample/hook/cmake_prefix_path.ps1
+source;share/KinovaExample/hook/cmake_prefix_path.dsv
+source;share/KinovaExample/hook/cmake_prefix_path.sh
+source;share/KinovaExample/local_setup.bash
+source;share/KinovaExample/local_setup.dsv
+source;share/KinovaExample/local_setup.ps1
+source;share/KinovaExample/local_setup.sh
+source;share/KinovaExample/local_setup.zsh

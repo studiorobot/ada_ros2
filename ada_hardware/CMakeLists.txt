@@ -16,12 +16,28 @@ find_package(hardware_interface REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 add_library(ada_hardware SHARED
-  src/jaco2.cpp
+  src/gen3.cpp
   src/isaacsim.cpp)
 
-target_include_directories(ada_hardware PUBLIC include)
+set(KORTEX_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../api_cpp/examples/kortex_api")
 
-target_link_libraries(ada_hardware -l:Kinova.API.CommLayerUbuntu.so -l:Kinova.API.USBCommandLayerUbuntu.so)
+target_include_directories(ada_hardware PUBLIC
+  include
+  ${KORTEX_API_DIR}/include
+  ${KORTEX_API_DIR}/include/client
+  ${KORTEX_API_DIR}/include/client_stubs
+  ${KORTEX_API_DIR}/include/common
+  ${KORTEX_API_DIR}/include/google
+  ${KORTEX_API_DIR}/include/messages
+)
+
+
+# target_link_libraries(ada_hardware -l:Kinova.API.CommLayerUbuntu.so -l:Kinova.API.USBCommandLayerUbuntu.so)
+target_link_libraries(ada_hardware
+  ${KORTEX_API_DIR}/lib/release/libKortexApiCpp.a
+  pthread
+)
+
 
 ament_target_dependencies(ada_hardware rclcpp rclcpp_lifecycle pluginlib hardware_interface sensor_msgs)
 
@@ -54,8 +70,8 @@ if(BUILD_TESTING)
   ### GMock
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)
-  ament_add_gmock(test_jaco2 test/test_jaco2.cpp)
-  ament_target_dependencies(test_jaco2
+  ament_add_gmock(test_gen3 test/test_gen3.cpp)
+  ament_target_dependencies(test_gen3
     pluginlib
     ros2_control_test_assets
     rclcpp

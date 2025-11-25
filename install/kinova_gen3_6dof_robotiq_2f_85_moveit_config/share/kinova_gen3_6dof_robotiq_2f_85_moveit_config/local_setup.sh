@@ -1,0 +1,1 @@
+/home/Shared/delicious/ada/workspace/src/ada_ros2/build/kinova_gen3_6dof_robotiq_2f_85_moveit_config/ament_cmake_environment_hooks/local_setup.sh

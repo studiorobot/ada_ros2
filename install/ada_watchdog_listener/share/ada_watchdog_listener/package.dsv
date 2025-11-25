@@ -1,0 +1,9 @@
+source;share/ada_watchdog_listener/hook/pythonpath.ps1
+source;share/ada_watchdog_listener/hook/pythonpath.dsv
+source;share/ada_watchdog_listener/hook/pythonpath.sh
+source;share/ada_watchdog_listener/hook/ament_prefix_path.ps1
+source;share/ada_watchdog_listener/hook/ament_prefix_path.dsv
+source;share/ada_watchdog_listener/hook/ament_prefix_path.sh
+source;../../build/ada_watchdog_listener/share/ada_watchdog_listener/hook/pythonpath_develop.ps1
+source;../../build/ada_watchdog_listener/share/ada_watchdog_listener/hook/pythonpath_develop.dsv
+source;../../build/ada_watchdog_listener/share/ada_watchdog_listener/hook/pythonpath_develop.sh

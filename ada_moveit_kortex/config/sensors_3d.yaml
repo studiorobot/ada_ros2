@@ -1,0 +1,18 @@
+# Copyright (c) 2024-2025, Personal Robotics Laboratory
+# License: BSD 3-Clause. See LICENSE.md file in root directory.
+
+octomap_frame: camera_color_optical_frame
+octomap_resolution: 0.02
+sensors:
+  - default_sensor
+default_sensor:
+  sensor_plugin: occupancy_map_monitor/DepthImageOctomapUpdater
+  image_topic:  /local/camera/aligned_depth_to_color/depth_octomap
+  queue_size: 1
+  near_clipping_plane_distance: 0.02
+  far_clipping_plane_distance: 5.0
+  shadow_threshold: 0.2
+  padding_scale: 4.0
+  padding_offset: 0.03
+  max_update_rate: 3.0
+  filtered_cloud_topic: filtered_cloud

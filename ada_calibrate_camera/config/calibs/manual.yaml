@@ -8,7 +8,7 @@
 publish_camera_extrinsics:
   ros__parameters:
     child_frame_id: camera_color_optical_frame
-    frame_id: j2n6s200_end_effector
+    frame_id: j2n6s200_end_effector #ada_end_effector_link # gurnoork edit
     pitch: 0.00
     roll: -0.2385
     x:  0.032

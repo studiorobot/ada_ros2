@@ -1,0 +1,1 @@
+/home/Shared/delicious/ada/workspace/src/ada_ros2/build/kortex_description/ament_cmake_core/kortex_descriptionConfig-version.cmake

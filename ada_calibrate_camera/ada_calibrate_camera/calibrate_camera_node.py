@@ -262,7 +262,7 @@ class CalibrateCameraNode(Node):
         ).value
         self.extrinsics_base_frame = self.declare_parameter(
             "extrinsics_base_frame",
-            "j2n6s200_end_effector",
+            "j2n6s200_end_effector", #"ada_end_effector_link", # gurnoork edit
             ParameterDescriptor(
                 name="extrinsics_base_frame",
                 type=ParameterType.PARAMETER_STRING,

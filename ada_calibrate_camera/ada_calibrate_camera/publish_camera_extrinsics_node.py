@@ -33,7 +33,7 @@ class PublishCameraExtrinsics(Node):
         self.declare_parameters(
             namespace="",
             parameters=[
-                ("frame_id", "j2n6s200_end_effector"),
+                ("frame_id", "j2n6s200_end_effector"), # ada_end_effector_link gurnoork edit
                 ("child_frame_id", "camera_color_optical_frame"),
                 ("x", 0.0),
                 ("y", 0.0),
