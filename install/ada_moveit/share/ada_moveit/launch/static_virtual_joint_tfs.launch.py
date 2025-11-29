@@ -1,1 +1,0 @@
-/home/Shared/delicious/ada/workspace/src/ada_ros2/ada_moveit/launch/static_virtual_joint_tfs.launch.py

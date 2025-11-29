@@ -1,1 +1,0 @@
-/home/Shared/delicious/ada/workspace/src/ada_ros2/kortex_moveit_config/kinova_gen3_lite_moveit_config/launch/static_virtual_joint_tfs.launch.py

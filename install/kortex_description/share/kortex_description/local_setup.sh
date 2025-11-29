@@ -1,1 +1,0 @@
-/home/Shared/delicious/ada/workspace/src/ada_ros2/build/kortex_description/ament_cmake_environment_hooks/local_setup.sh

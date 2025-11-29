@@ -1,1 +1,0 @@
-/home/Shared/delicious/ada/workspace/src/ada_ros2/ada_moveit/config/jaco2/initial_positions.jaco.txt
