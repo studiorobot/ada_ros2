@@ -5,7 +5,9 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.utilities import normalize_to_list_of_substitutions
 from launch.substitutions import LaunchConfiguration
+from launch.substitutions import Command
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch.substitutions import LaunchConfiguration
 from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launches import generate_move_group_launch
@@ -24,7 +26,7 @@ def get_move_group_launch(context):
 
     # Get MoveIt Configs
     moveit_config = MoveItConfigsBuilder(
-        "ada", package_name="ada_moveit"
+        "ada", package_name="ada_moveit_kortex"
     ).to_moveit_configs()
 
     # If sim is mock, set moveit_config.sensors_3d to an empty dictionary

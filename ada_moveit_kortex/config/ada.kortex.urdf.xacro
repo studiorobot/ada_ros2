@@ -13,7 +13,7 @@
   />
 
   <!-- Import ada urdf file -->
-  <xacro:include filename="$(find ada_description)/urdf/ada_kortex.xacro"/>
+  <xacro:include filename="$(find ada_description)/urdf/ada.xacro"/>
 
   <!-- Import control_xacro -->
   <xacro:include filename="ada.ros2_control.xacro"/>

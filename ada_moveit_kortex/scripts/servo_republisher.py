@@ -40,12 +40,13 @@ from tf2_ros.transform_listener import TransformListener
 
 
 JOINT_NAMES = [
-    "j2n6s200_joint_1",
-    "j2n6s200_joint_2",
-    "j2n6s200_joint_3",
-    "j2n6s200_joint_4",
-    "j2n6s200_joint_5",
-    "j2n6s200_joint_6",
+    "ada_joint_1",
+    "ada_joint_2",
+    "ada_joint_3",
+    "ada_joint_4",
+    "ada_joint_5",
+    "ada_joint_6",
+    "ada_joint_7",
 ]
 POSITION_INTERFACE_NAME = "position"
 VELOCITY_INTERFACE_NAME = "velocity"
@@ -144,7 +145,7 @@ class ServoRepublisher(Node):
         # Parameters for cartesian control
         input_linear_velocity_frame = self.declare_parameter(
             "input_linear_velocity_frame",
-            "j2n6s200_link_base",
+            "ada_base_link",
             descriptor=ParameterDescriptor(
                 name="input_linear_velocity_frame",
                 type=ParameterType.PARAMETER_STRING,
@@ -172,7 +173,7 @@ class ServoRepublisher(Node):
         self.angular_velocity.header.frame_id = input_angular_velocity_frame
         output_twist_frame = self.declare_parameter(
             "output_twist_frame",
-            "j2n6s200_link_base",
+            "ada_base_link",
             descriptor=ParameterDescriptor(
                 name="output_twist_frame",
                 type=ParameterType.PARAMETER_STRING,

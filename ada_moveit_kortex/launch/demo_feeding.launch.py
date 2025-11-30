@@ -18,7 +18,7 @@ from srdfdom.srdf import SRDF
 def generate_launch_description():
     # MoveIt Config
     moveit_config = MoveItConfigsBuilder(
-        "ada", package_name="ada_moveit"
+        "ada", package_name="ada_moveit_kortex"
     ).to_moveit_configs()
 
     # Create the launch description and populate

@@ -40,7 +40,7 @@ def generate_launch_description():
 
     # Calibration Launch Argument
     calib_da = DeclareLaunchArgument(
-        "calibb",
+        "calib",
         default_value="auto",
         description="Which calibration folder to use. Files are located in the `ada_calibrate_camera` package.",
     )

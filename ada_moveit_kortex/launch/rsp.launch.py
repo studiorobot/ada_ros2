@@ -23,7 +23,7 @@ def generate_launch_description():
     ld.add_action(log_level_da)
 
     moveit_config = MoveItConfigsBuilder(
-        "ada", package_name="ada_moveit"
+        "ada", package_name="ada_moveit_kortex"
     ).to_moveit_configs()
     entities = generate_rsp_launch(moveit_config).entities
     for entity in entities:
