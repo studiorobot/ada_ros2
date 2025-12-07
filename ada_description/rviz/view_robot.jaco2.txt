@@ -87,16 +87,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
         Link Tree Style: Links in Alphabetic Order
-        base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        bracelet_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
         cameraMount:
           Alpha: 1
           Show Axes: false
@@ -112,15 +102,6 @@ Visualization Manager:
           Show Trail: false
           Value: true
         enclosureTop:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        end_effector_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        forearm_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -149,12 +130,61 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        half_arm_1_link:
+        j2n6s200_end_effector:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        j2n6s200_link_1:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        half_arm_2_link:
+        j2n6s200_link_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_6:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_finger_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_finger_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_finger_tip_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        j2n6s200_link_finger_tip_2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -187,25 +217,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        shoulder_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        spherical_wrist_1_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        spherical_wrist_2_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        tool_frame:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
         uncalibrated_camera_bottom_screw_frame:
           Alpha: 1
           Show Axes: false
@@ -215,10 +226,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        world:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
       Mass Properties:
         Inertia: false
         Mass: false
