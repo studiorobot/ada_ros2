@@ -1,25 +1,11 @@
-# Copyright (c) 2024-2025, Personal Robotics Laboratory
-# License: BSD 3-Clause. See LICENSE.md file in root directory.
-
-# Default initial positions for ada's ros2_control fake system
+# Default initial positions for gen3's ros2_control fake system
 
 initial_positions:
-  # # Candle Position
-  # j2n6s200_joint_1: 0
-  # j2n6s200_joint_2: 3.1415926535
-  # j2n6s200_joint_3: 3.1415926535
-  # j2n6s200_joint_4: 0
-  # j2n6s200_joint_5: 0
-  # j2n6s200_joint_6: 0
-  # j2n6s200_joint_finger_1: 1.317
-  # j2n6s200_joint_finger_2: 1.317
-
-  # Home Position
-  j2n6s200_joint_1: -1.47568
-  j2n6s200_joint_2: 2.92779
-  j2n6s200_joint_3: 1.00845
-  j2n6s200_joint_4: -2.0847
-  j2n6s200_joint_5: 1.43588
-  j2n6s200_joint_6: 1.32575
-  j2n6s200_joint_finger_1: 1.317
-  j2n6s200_joint_finger_2: 1.317
+  joint_1: 0
+  joint_2: 0
+  joint_3: 0
+  joint_4: 0
+  joint_5: 0
+  joint_6: 0
+  joint_7: 0
+  robotiq_85_left_knuckle_joint: 0
