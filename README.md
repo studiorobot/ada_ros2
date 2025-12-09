@@ -1,6 +1,22 @@
-# ada_ros2
+# ada_ros2 (Robot Studio Lab Adaptation)
 
 ROS2 Hardware Interface and Description for the ADA Robot
+
+> **Important:** This repository is an adaptation of the original
+> `ada_ros2` developed by the Personal Robotics Lab.  
+> You are currently on the **Jaco2** branch, which uses the **Gen2**
+> robot configuration.
+>
+> To use the **Gen3 (Kortex) robot**, please checkout or clone the
+> **`main` branch** instead.
+>
+> The `main` branck adaptation replaces the original `ada_moveit` configuration
+> (which used Jaco2) and configures MoveIt for the Gen3 robot.
+> The remaining documentation in this README is inherited from the
+> Personal Robotics Lab and kept here because this project is built on
+> top of their work.
+
+---
 
 ## Setup
 
