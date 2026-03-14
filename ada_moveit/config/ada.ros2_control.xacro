@@ -19,6 +19,11 @@
           <param name="mock_sensor_commands">false</param>
           <param name="state_following_offset">0.0</param>
         </xacro:if>
+        <xacro:if value="${sim == 'mock_kortex'}">
+          <plugin>mock_components/GenericSystem</plugin>
+          <param name="mock_sensor_commands">false</param>
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
         <xacro:if value="${sim == 'isaac'}">
           <plugin>ada_hardware/Gen3Isaac</plugin>
           <param name="namespace">/simulation</param>

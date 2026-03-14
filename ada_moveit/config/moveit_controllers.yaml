@@ -5,6 +5,9 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 moveit_simple_controller_manager:
   controller_names:
     - joint_trajectory_controller
+    - jaco_arm_controller
+    - jaco_arm_cartesian_controller
+    - jaco_arm_servo_controller
 
   joint_trajectory_controller:
     type: FollowJointTrajectory
@@ -18,3 +21,42 @@ moveit_simple_controller_manager:
       - ada_joint_7
     action_ns: follow_joint_trajectory
     default: true
+
+  jaco_arm_controller:
+    type: FollowJointTrajectory
+    joints:
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+    action_ns: follow_joint_trajectory
+    default: false
+  
+  jaco_arm_cartesian_controller:
+    type: ""
+    joints:
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+    action_ns: cart_commands
+    default: false
+
+  jaco_arm_servo_controller:
+    type: ""
+    joints:
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+    action_ns: commands
+    default: false
