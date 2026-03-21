@@ -18,9 +18,15 @@
   <!-- Import control_xacro -->
   <xacro:include filename="ada.ros2_control.xacro"/>
 
-  <xacro:ada_ros2_control
-    name="ADAHardware"
-    initial_positions_file="$(arg initial_positions_file)"
-    sim="$(arg sim)"
-  />
+  <!-- Only add the ADAHardware ros2_control for real hardware.
+       For mock/mock_kortex, the Kortex hardware interface (ada_KortexMultiInterfaceHardware) 
+       from ada_description already provides fake hardware support. 
+       Adding both causes duplicate interface registration. -->
+  <xacro:if value="${'$(arg sim)' == 'real'}">
+    <xacro:ada_ros2_control
+      name="ADAHardware"
+      initial_positions_file="$(arg initial_positions_file)"
+      sim="$(arg sim)"
+    />
+  </xacro:if>
 </robot>

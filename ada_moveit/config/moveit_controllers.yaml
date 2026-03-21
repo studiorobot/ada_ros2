@@ -6,7 +6,7 @@ moveit_simple_controller_manager:
   controller_names:
     - joint_trajectory_controller
     - jaco_arm_controller
-    - jaco_arm_cartesian_controller
+    - jaco_arm_cartesian_controller  
     - jaco_arm_servo_controller
 
   joint_trajectory_controller:

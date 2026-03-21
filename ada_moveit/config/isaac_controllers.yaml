@@ -50,3 +50,15 @@ robotiq_gripper_controller:
     default: true
     joint: robotiq_85_left_knuckle_joint
     allow_stalling: true
+joint_state_broadcaster:
+  ros__parameters:
+    state_publish_rate: 100.0
+    use_local_topics: false
+    # QoS settings to match other publishers (VOLATILE instead of TRANSIENT_LOCAL)
+    qos_overrides:
+      /joint_states:
+        publisher:
+          reliability: reliable
+          durability: volatile
+          history: keep_last
+          depth: 1

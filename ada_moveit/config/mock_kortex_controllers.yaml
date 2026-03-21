@@ -5,6 +5,13 @@
 controller_manager:
   ros__parameters:
     update_rate: 1000  # Hz
+    
+    # QoS overrides to make joint_state_broadcaster use VOLATILE
+    qos_overrides:
+      /joint_states:
+        publisher:
+          reliability: reliable
+          durability: volatile
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -131,3 +138,13 @@ twist_controller:
       - twist.angular.x
       - twist.angular.y
       - twist.angular.z
+
+joint_state_broadcaster:
+  ros__parameters:
+    state_publish_rate: 100.0
+    use_local_topics: false
+    qos_overrides:
+      /joint_states:
+        publisher:
+          reliability: reliable
+          durability: volatile

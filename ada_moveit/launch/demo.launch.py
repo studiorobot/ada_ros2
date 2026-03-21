@@ -276,6 +276,8 @@ def generate_launch_description():
             # Commented out the log-level since the joint state publisher logs every joint read
             # when on debug level
             arguments=["--ros-args"],  # , "--log-level", log_level],
+            respawn=True,
+            respawn_delay=2.0,
         )
     )
 

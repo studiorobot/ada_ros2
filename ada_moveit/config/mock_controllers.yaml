@@ -131,3 +131,16 @@ twist_controller:
       - twist.angular.x
       - twist.angular.y
       - twist.angular.z
+
+joint_state_broadcaster:
+  ros__parameters:
+    state_publish_rate: 100.0
+    use_local_topics: false
+    # QoS settings to match other publishers (VOLATILE instead of TRANSIENT_LOCAL)
+    qos_overrides:
+      /joint_states:
+        publisher:
+          reliability: reliable
+          durability: volatile
+          history: keep_last
+          depth: 1
