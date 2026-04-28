@@ -9,6 +9,13 @@ from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
 from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launches import generate_move_group_launch
+import os
+import yaml
+from ament_index_python.packages import get_package_share_directory
+from moveit_configs_utils.launch_utils import (
+    add_debuggable_node,
+    DeclareBooleanLaunchArg,
+)
 
 
 def get_move_group_launch(context):
@@ -32,6 +39,7 @@ def get_move_group_launch(context):
         moveit_config.sensors_3d = {}
 
     entities = generate_move_group_launch(moveit_config).entities
+    
     log_level_cmd_line_args = ["--ros-args", "--log-level", log_level]
     for entity in entities:
         if isinstance(entity, Node):

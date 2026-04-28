@@ -1,7 +1,7 @@
 # Copyright (c) 2024-2025, Personal Robotics Laboratory
 # License: BSD 3-Clause. See LICENSE.md file in root directory.
 
-# This config file is used by ros2_control
+# This config file is used by ros2_control for the mock_kortex simulation
 controller_manager:
   ros__parameters:
     update_rate: 1000  # Hz
@@ -48,6 +48,7 @@ joint_trajectory_controller:
     constraints:
       stopped_velocity_tolerance: 0.0
       goal_time: 0.0
+    allow_start_tolerance: 0.05
 
 jaco_arm_cartesian_controller:
     ros__parameters:
@@ -136,11 +137,8 @@ joint_state_broadcaster:
   ros__parameters:
     state_publish_rate: 100.0
     use_local_topics: false
-    # QoS settings to match other publishers (VOLATILE instead of TRANSIENT_LOCAL)
     qos_overrides:
       /joint_states:
         publisher:
           reliability: reliable
           durability: volatile
-          history: keep_last
-          depth: 1

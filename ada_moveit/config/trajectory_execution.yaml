@@ -1,0 +1,14 @@
+# Trajectory Execution Configuration
+# Sets parameters for MoveIt's trajectory execution manager
+
+trajectory_execution:
+  ros__parameters:
+    # Allowed tolerance (in radians) before trajectory start point and current state
+    # Default is 0.01. Increase this if you get "start point deviates from current robot state" errors
+    allowed_start_tolerance: 0.05
+    
+    # Time to wait for controllers to be ready
+    controller_manager_connector_timeout: 5.0
+    
+    # Time for trajectory execution to complete
+    execute_via_moveit: true

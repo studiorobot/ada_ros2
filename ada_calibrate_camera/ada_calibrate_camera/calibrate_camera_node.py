@@ -102,7 +102,7 @@ class CalibrateCameraNode(Node):
             joint_names=kinova.joint_names(),
             base_link_name=kinova.base_link_name(),
             end_effector_name=self.robot_end_effector_frame,
-            group_name="jaco_arm",
+            group_name="manipulator",
             callback_group=callback_group,
         )
 

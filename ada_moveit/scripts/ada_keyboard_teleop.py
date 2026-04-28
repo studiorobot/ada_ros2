@@ -47,7 +47,7 @@ Joint control:
 
 CTRL-C to quit
 """
-BASE_FRAME = "j2n6s200_link_base"
+BASE_FRAME = "ada_base_link"
 EE_FRAME = "forkTip"
 LINEAR_VEL_CMD = 0.1  # m/s
 ANGULAR_VEL_CMD = 0.3  # rad/s
@@ -87,12 +87,13 @@ cartesian_control_angular_bindings = {
     "o": (0.0, 0.0, -1.0),  # -roll
 }
 joint_control_bindings = {
-    "1": "j2n6s200_joint_1",
-    "2": "j2n6s200_joint_2",
-    "3": "j2n6s200_joint_3",
-    "4": "j2n6s200_joint_4",
-    "5": "j2n6s200_joint_5",
-    "6": "j2n6s200_joint_6",
+    "1": "ada_joint_1",
+    "2": "ada_joint_2",
+    "3": "ada_joint_3",
+    "4": "ada_joint_4",
+    "5": "ada_joint_5",
+    "6": "ada_joint_6",
+    "7": "ada_joint_7",
 }
 reverse_joint_direction_key = "r"  # pylint: disable=invalid-name
 

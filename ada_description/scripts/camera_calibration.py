@@ -149,7 +149,7 @@ class CameraCalibrator(Node):
                 ),
                 (
                     "ee_frame",
-                    "j2n6s200_link_6",
+                    "ada_link_7",
                     ParameterDescriptor(
                         name="camera_frame",
                         type=ParameterType.PARAMETER_STRING,
