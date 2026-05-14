@@ -35,7 +35,7 @@ def get_move_group_launch(context):
     ).to_moveit_configs()
 
     # If sim is mock, set moveit_config.sensors_3d to an empty dictionary
-    if sim == "mock" or use_octomap == "false":
+    if sim == "mock" or sim == "mock_kortex" or use_octomap == "false":
         moveit_config.sensors_3d = {}
 
     entities = generate_move_group_launch(moveit_config).entities
