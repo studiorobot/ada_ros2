@@ -19,4 +19,12 @@
       Interface for controlling a 6DOF arm (+ 2 fingers) in IsaacSim.
     </description>
   </class>
+
+  <class name="ada_hardware/Gen3"
+         type="ada_hardware::Gen3"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Interface for controlling a 7DOF Kinova Gen3 arm with Kortex API over Ethernet.
+    </description>
+  </class>
 </library>

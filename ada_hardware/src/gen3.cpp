@@ -37,7 +37,7 @@
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 
 #include "rclcpp/rclcpp.hpp"
-/*
+
 namespace ada_hardware
 {
 
@@ -55,7 +55,7 @@ Gen3::~Gen3()
   //CloseAPI();
 }
 
-/*
+
 // Init: Read info and configure command/state buffers
 hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::HardwareInfo & info)
 {

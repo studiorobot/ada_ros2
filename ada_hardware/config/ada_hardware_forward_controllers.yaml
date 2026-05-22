@@ -20,35 +20,38 @@ controller_manager:
 forward_position_controller:
   ros__parameters:
     joints:
-      - j2n6s200_joint_1
-      - j2n6s200_joint_2
-      - j2n6s200_joint_3
-      - j2n6s200_joint_4
-      - j2n6s200_joint_5
-      - j2n6s200_joint_6
-      - j2n6s200_joint_finger_1
-      - j2n6s200_joint_finger_2
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+      - ada_joint_finger_1
+      - ada_joint_finger_2
 
 forward_velocity_controller:
   ros__parameters:
     joints:
-      - j2n6s200_joint_1
-      - j2n6s200_joint_2
-      - j2n6s200_joint_3
-      - j2n6s200_joint_4
-      - j2n6s200_joint_5
-      - j2n6s200_joint_6
-      - j2n6s200_joint_finger_1
-      - j2n6s200_joint_finger_2
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+      - ada_joint_finger_1
+      - ada_joint_finger_2
 
 forward_effort_controller:
   ros__parameters:
     joints:
-      - j2n6s200_joint_1
-      - j2n6s200_joint_2
-      - j2n6s200_joint_3
-      - j2n6s200_joint_4
-      - j2n6s200_joint_5
-      - j2n6s200_joint_6
-      - j2n6s200_joint_finger_1
-      - j2n6s200_joint_finger_2
+      - ada_joint_1
+      - ada_joint_2
+      - ada_joint_3
+      - ada_joint_4
+      - ada_joint_5
+      - ada_joint_6
+      - ada_joint_7
+      - ada_joint_finger_1
+      - ada_joint_finger_2

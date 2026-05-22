@@ -56,7 +56,7 @@
 // ROS
 #include "hardware_interface/system_interface.hpp"
 #include "rclcpp/macros.hpp"
-/*
+
 namespace ada_hardware
 {
 
@@ -144,5 +144,5 @@ private:
 
 };  // End namespace ada_hardware
 
-*/
+
 #endif

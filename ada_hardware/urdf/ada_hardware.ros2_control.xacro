@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro
     name="ada_hardware_interface"
-    params="name prefix:=j2n6s200 sim readonly:=false"
+    params="name prefix:=ada sim readonly:=false"
   >
     <ros2_control
       name="${name}"
@@ -19,6 +19,9 @@
           <param name="namespace">/simulation</param>
         </xacro:if>
         <xacro:if value="${sim == 'none'}">
+          <plugin>ada_hardware/Gen3</plugin>
+        </xacro:if>
+        <xacro:if value="${sim == 'Jaco2'}">
           <plugin>ada_hardware/Jaco2</plugin>
         </xacro:if>
       </hardware>
@@ -75,6 +78,16 @@
         <state_interface name="effort"/>
       </joint>
       <joint name="${prefix}_joint_6">
+        <xacro:unless value="${readonly}">
+          <command_interface name="position"/>
+          <command_interface name="velocity"/>
+          <command_interface name="effort"/>
+        </xacro:unless>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="${prefix}_joint_7">
         <xacro:unless value="${readonly}">
           <command_interface name="position"/>
           <command_interface name="velocity"/>
