@@ -9,7 +9,7 @@
   <xacro:arg name="arm" default="NO_ARM_TYPE_DEFINED" />
   <xacro:arg name="dof" default="7" />
   <xacro:arg name="vision" default="false" />
-  <xacro:arg name="robot_ip" default="192.168.11.11" />
+  <xacro:arg name="robot_ip" default="192.168.1.10" />
   <xacro:arg name="username" default="admin" />
   <xacro:arg name="password" default="admin" />
   <xacro:arg name="port" default="10000" />

@@ -23,7 +23,6 @@ from geometry_msgs.msg import TwistStamped, Vector3
 from moveit_msgs.msg import MoveItErrorCodes
 import numpy as np
 from pymoveit2 import MoveIt2, MoveIt2State
-from pymoveit2.robots import kinova
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.duration import Duration
@@ -99,8 +98,8 @@ class CalibrateCameraNode(Node):
         callback_group = ReentrantCallbackGroup()
         self.moveit2 = MoveIt2(
             node=self,
-            joint_names=kinova.joint_names(),
-            base_link_name=kinova.base_link_name(),
+            joint_names=self.arm_joint_names,
+            base_link_name=self.robot_base_link_frame,
             end_effector_name=self.robot_end_effector_frame,
             group_name="manipulator",
             callback_group=callback_group,
@@ -260,6 +259,29 @@ class CalibrateCameraNode(Node):
                 read_only=True,
             ),
         ).value
+        self.arm_joint_names = self.declare_parameter(
+            "arm_joint_names",
+            [f"ada_joint_{i}" for i in range(1, 8)],
+            ParameterDescriptor(
+                name="arm_joint_names",
+                type=ParameterType.PARAMETER_STRING_ARRAY,
+                description=(
+                    "The names of the arm's joints, in order. Must match the "
+                    "names published on /joint_states."
+                ),
+                read_only=True,
+            ),
+        ).value
+        self.robot_base_link_frame = self.declare_parameter(
+            "robot_base_link_frame",
+            "ada_base_link",
+            ParameterDescriptor(
+                name="robot_base_link_frame",
+                type=ParameterType.PARAMETER_STRING,
+                description="The robot's base link frame. Used for cartesian motions.",
+                read_only=True,
+            ),
+        ).value
         self.extrinsics_base_frame = self.declare_parameter(
             "extrinsics_base_frame",
             "ada_end_effector_link", # updated end effector - gurnoork 
@@ -281,6 +303,7 @@ class CalibrateCameraNode(Node):
                 "jaco_arm_servo_controller",
                 "jaco_arm_cartesian_controller",
                 "jaco_arm_controller",
+                "joint_trajectory_controller",
             ],
             ParameterDescriptor(
                 name="all_controllers",
@@ -309,12 +332,13 @@ class CalibrateCameraNode(Node):
         self.starting_arm_configuration = self.declare_parameter(
             "starting_arm_configuration",
             [
-                -2.3149168248766614,  # j2n6s200_joint_1
-                3.1444595465032634,  # j2n6s200_joint_2
-                1.7332586075115999,  # j2n6s200_joint_3
-                -2.3609596843308234,  # j2n6s200_joint_4
-                4.43936623280362,  # j2n6s200_joint_5
-                3.06866544924739,  # j2n6s200_joint_6
+                -2.937532,  # ada_joint_1
+                -0.920922,  # ada_joint_2
+                -0.219908,  # ada_joint_3
+                -0.769714,  # ada_joint_4
+                -3.003279,  # ada_joint_5
+                1.436989,  # ada_joint_6
+                -1.348072,  # ada_joint_7
             ],
             ParameterDescriptor(
                 name="starting_arm_configuration",

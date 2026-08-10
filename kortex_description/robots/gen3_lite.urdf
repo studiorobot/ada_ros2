@@ -9,7 +9,7 @@
   <ros2_control name="KortexMultiInterfaceHardware" type="system">
     <hardware>
       <plugin>kortex_driver/KortexMultiInterfaceHardware</plugin>
-      <param name="robot_ip">192.168.11.11</param>
+      <param name="robot_ip">192.168.1.10</param>
       <param name="username">admin</param>
       <param name="password">admin</param>
       <param name="port">10000</param>

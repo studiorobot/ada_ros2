@@ -41,10 +41,33 @@
 namespace ada_hardware
 {
 
-// Ensure Shutdown
+// Destructor
 Gen3::~Gen3()
 {
-  setTorqueMode(false);
+  try{stopMotion();} catch(...) {}
+  try{setTorqueMode(false);} catch(...) {}
+
+  if(session_manager_){
+    Kinova::Api::Session::CreateSessionInfo session_info;
+    try{session_manager_->CloseSession();} catch(...) {}
+  }
+  if(session_manager_udp_){
+    try{session_manager_udp_->CloseSession();} catch(...) {}
+  }
+
+  //reset smart pointers in reverse construction order
+  actuator_config_.reset();
+  base_cyclic_.reset();
+  base_.reset();
+  device_manager_.reset();
+  session_manager_.reset();
+  session_manager_udp_.reset();
+  router_udp_.reset();
+  transport_udp_.reset();
+  router_tcp_.reset();
+  transport_tcp_.reset();
+
+  //setTorqueMode(false);
 
   //EraseAllTrajectories();
 
@@ -65,6 +88,27 @@ hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::Hardw
     return hardware_interface::CallbackReturn::ERROR;
   }
 
+  // read connection parameters from <hardware><param> tags in the urdf/xacro
+  if(info_.hardware_parameters.count("robot_ip") == 0) {
+    RCLCPP_FATAL(rclcpp::get_logger("Gen3"), "Missing required parameter 'robot_ip'.");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+  robot_ip_ = info_.hardware_parameters.at("robot_ip");
+
+  if(info_.hardware_parameters.count("username")){
+    username_ = info_.hardware_parameters.at("username");
+  }
+  if(info_.hardware_parameters.count("password")){
+    password_ = info_.hardware_parameters.at("password");
+  }
+  if(info_.hardware_parameters.count("tcp_port")){
+    tcp_port_ = std::stoi(info_.hardware_parameters.at("tcp_port"));
+  }
+  if(info_.hardware_parameters.count("udp_port")){
+    udp_port_ = std::stoi(info_.hardware_parameters.at("udp_port"));
+  }
+
+  // Resize state/command buffers
   hw_states_positions_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
   hw_states_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
   hw_states_efforts_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
@@ -76,12 +120,11 @@ hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::Hardw
 
   position_offsets_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
 
+  // Validate interface counts for every joint
   for (const hardware_interface::ComponentInfo & joint : info_.joints) {
-    // JACO2 has exactly 3 state interfaces
-    // and 3 command interfaces on each joint
     if (joint.state_interfaces.size() != 3) {
       RCLCPP_FATAL(
-        rclcpp::get_logger("Jaco2"), "Joint '%s' has %zu state interfaces. 3 expected.",
+        rclcpp::get_logger("Gen3"), "Joint '%s' has %zu state interfaces. 3 expected.",
         joint.name.c_str(), joint.state_interfaces.size());
       return hardware_interface::CallbackReturn::ERROR;
     }
@@ -91,18 +134,33 @@ hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::Hardw
       read_only_ = true;
     } else if (joint.command_interfaces.size() != 3) {
       RCLCPP_FATAL(
-        rclcpp::get_logger("Jaco2"), "Joint '%s'has %zu command interfaces. 3 expected.",
+        rclcpp::get_logger("Gen3"), "Joint '%s'has %zu command interfaces. 3 expected.",
         joint.name.c_str(), joint.command_interfaces.size());
       return hardware_interface::CallbackReturn::ERROR;
     }
 
+    auto check_interface = [&](const std::string & name, const std::string & kind){
+      if(!(name == hardware_interface::HW_IF_POSITION || 
+           name == hardware_interface::HW_IF_VELOCITY ||
+           name == hardware_interface::HW_IF_EFFORT)) {
+             RCLCPP_FATAL( rclcpp::get_logger("Gen3"), "Joint '%s'has %s %s interface. Expected %s, %s, or %s.",
+              joint.name.c_str(), name.c_str(), kind.c_str(),
+              hardware_interface::HW_IF_POSITION,
+              hardware_interface::HW_IF_VELOCITY,
+              hardware_interface::HW_IF_EFFORT);
+            return false;
+           }
+      return true;
+    };
+
+    //CHECK WHY THIS NEEDS TO BE CHANGED
     if (!read_only_) {
       for (const hardware_interface::InterfaceInfo & interface_info : joint.command_interfaces) {
         if (!(interface_info.name == hardware_interface::HW_IF_POSITION ||
               interface_info.name == hardware_interface::HW_IF_VELOCITY ||
               interface_info.name == hardware_interface::HW_IF_EFFORT)) {
           RCLCPP_FATAL(
-            rclcpp::get_logger("Jaco2"), "Joint '%s' has %s command interface. Expected %s, %s, or %s.",
+            rclcpp::get_logger("Gen3"), "Joint '%s' has %s command interface. Expected %s, %s, or %s.",
             joint.name.c_str(), interface_info.name.c_str(),
             hardware_interface::HW_IF_POSITION, hardware_interface::HW_IF_VELOCITY,
             hardware_interface::HW_IF_EFFORT);
@@ -111,12 +169,13 @@ hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::Hardw
       }
     }
 
+    //CHECK WHY THIS NEEDS TO BE CHANGED
     for (const hardware_interface::InterfaceInfo & interface_info : joint.state_interfaces) {
       if (!(interface_info.name == hardware_interface::HW_IF_POSITION ||
             interface_info.name == hardware_interface::HW_IF_VELOCITY ||
             interface_info.name == hardware_interface::HW_IF_EFFORT)) {
         RCLCPP_FATAL(
-          rclcpp::get_logger("Jaco2"), "Joint '%s' has %s state interface. Expected %s, %s, or %s.",
+          rclcpp::get_logger("Gen3"), "Joint '%s' has %s state interface. Expected %s, %s, or %s.",
           joint.name.c_str(), interface_info.name.c_str(),
           hardware_interface::HW_IF_POSITION, hardware_interface::HW_IF_VELOCITY,
           hardware_interface::HW_IF_EFFORT);
@@ -128,7 +187,7 @@ hardware_interface::CallbackReturn Gen3::on_init(const hardware_interface::Hardw
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::StateInterface> Jaco2::export_state_interfaces()
+std::vector<hardware_interface::StateInterface> Gen3::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
@@ -143,7 +202,7 @@ std::vector<hardware_interface::StateInterface> Jaco2::export_state_interfaces()
   return state_interfaces;
 }
 
-std::vector<hardware_interface::CommandInterface> Jaco2::export_command_interfaces()
+std::vector<hardware_interface::CommandInterface> Gen3::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
   for (std::size_t i = 0; i < info_.joints.size(); i++) {
@@ -160,7 +219,7 @@ std::vector<hardware_interface::CommandInterface> Jaco2::export_command_interfac
 
 // Mode Switching
 // All joints must be the same mode.
-hardware_interface::return_type Jaco2::prepare_command_mode_switch(
+hardware_interface::return_type Gen3::prepare_command_mode_switch(
   const std::vector<std::string> & start_interfaces,
   const std::vector<std::string> & stop_interfaces)
 {
@@ -168,7 +227,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
   if(read_only_) return hardware_interface::return_type::ERROR;
 
   // Prepare stopping command modes
-  std::vector<integration_level_t> old_modes = {};
+  /*std::vector<integration_level_t> old_modes = {};
   for (std::string key : stop_interfaces) {
     for (std::size_t i = 0; i < info_.joints.size(); i++) {
       if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION) {
@@ -181,16 +240,35 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
         old_modes.push_back(integration_level_t::kEFFORT);
       }
     }
-  }
+  }*/
+  auto classify = [&](const std::vector<std::string> & ifaces){
+    std::vector<integration_level_t> modes;
+
+    for(const std::string & key : ifaces){
+        for(std::size_t i = 0; i < info_.joints.size(); i++){
+          if(key == info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION){
+            modes.push_back(integration_level_t::kPOSITION);
+          }
+          else if(key == info_.joints[i].name + "/" + hardware_interface::HW_IF_VELOCITY){
+            modes.push_back(integration_level_t::kVELOCITY);
+          }
+          else if(key == info_.joints[i].name + "/" + hardware_interface::HW_IF_EFFORT){
+            modes.push_back(integration_level_t::kEFFORT);
+          }
+        }
+    }
+    return modes;
+  };
 
   // Handle Stop
-  if (old_modes.size() > 0) {
+  auto old_modes = classify(stop_interfaces);
+  if (!old_modes.empty()) {
     // Criterion: All hand or all arm or all joints must be stopped at the same time
     if (
       old_modes.size() != num_dofs_.first && old_modes.size() != num_dofs_.second &&
       old_modes.size() != info_.joints.size()) {
       RCLCPP_ERROR(
-        rclcpp::get_logger("Jaco2"), "Must stop all hand, arm, or robot joints simultaneously.");
+        rclcpp::get_logger("Gen3"), "Must stop all hand, arm, or robot joints simultaneously.");
       return hardware_interface::return_type::ERROR;
     }
 
@@ -198,7 +276,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
     if (!std::all_of(old_modes.begin() + 1, old_modes.end(), [&](integration_level_t mode) {
           return mode == control_level_;
         })) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "All stopped joints must be in the same mode.");
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "All stopped joints must be in the same mode.");
       return hardware_interface::return_type::ERROR;
     }
 
@@ -214,10 +292,8 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
       // Stop motion
       {
         const std::lock_guard<std::mutex> lock(mMutex);
-        int r = NO_ERROR_KINOVA;
-        r = EraseAllTrajectories();
-        if (r != NO_ERROR_KINOVA) {
-          RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not stop robot : Error code %d", r);
+        if (!stopMotion()) {
+          RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not stop robot.");
           return hardware_interface::return_type::ERROR;
         }
       }
@@ -226,7 +302,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
   }
 
   // Prepare for new command modes
-  std::vector<integration_level_t> new_modes = {};
+  /*std::vector<integration_level_t> new_modes = {};
   for (std::string key : start_interfaces) {
     for (std::size_t i = 0; i < info_.joints.size(); i++) {
       if (key == info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION) {
@@ -239,16 +315,17 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
         new_modes.push_back(integration_level_t::kEFFORT);
       }
     }
-  }
+  }*/
 
   // Handle Start
-  if (new_modes.size() > 0) {
+  auto new_modes = classify(start_interfaces);
+  if (!new_modes.empty()) {
     // Criterion: All hand or all arm or all joints must be given new command mode at the same time
     if (
       new_modes.size() != num_dofs_.first && new_modes.size() != num_dofs_.second &&
       new_modes.size() != info_.joints.size()) {
       RCLCPP_ERROR(
-        rclcpp::get_logger("Jaco2"), "Must request all hand, arm, or robot joints simultaneously.");
+        rclcpp::get_logger("Gen3"), "Must request all hand, arm, or robot joints simultaneously.");
       return hardware_interface::return_type::ERROR;
     }
 
@@ -256,7 +333,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
     if (!std::all_of(new_modes.begin() + 1, new_modes.end(), [&](integration_level_t mode) {
           return mode == new_modes[0];
         })) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "All joints must be the same command mode.");
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "All joints must be the same command mode.");
       return hardware_interface::return_type::ERROR;
     }
 
@@ -265,7 +342,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
                  (new_modes.size() == num_dofs_.first && control_connected_.first) ||
                  (control_connected_.first && control_connected_.second);
     if (inUse) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Joints already in use.");
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Joints already in use.");
       return hardware_interface::return_type::ERROR;
     }
 
@@ -273,7 +350,7 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
     if (new_modes.size() == num_dofs_.second) {
       if (control_level_ != integration_level_t::kUNDEFINED && new_modes[0] != control_level_) {
         RCLCPP_ERROR(
-          rclcpp::get_logger("Jaco2"), "Hand controller can't override arm control mode.");
+          rclcpp::get_logger("Gen3"), "Hand controller can't override arm control mode.");
         return hardware_interface::return_type::ERROR;
       }
     }
@@ -291,10 +368,8 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
       // Stop motion
       {
         const std::lock_guard<std::mutex> lock(mMutex);
-        int r = NO_ERROR_KINOVA;
-        r = EraseAllTrajectories();
-        if (r != NO_ERROR_KINOVA) {
-          RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not stop robot : Error code %d", r);
+        if (!stopMotion()) {
+          RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not stop robot before mode switch.");
           return hardware_interface::return_type::ERROR;
         }
       }
@@ -306,100 +381,76 @@ hardware_interface::return_type Jaco2::prepare_command_mode_switch(
 }
 
 // Configure: init api, make sure joint number matches robot
-hardware_interface::CallbackReturn Jaco2::on_configure(
-  const rclcpp_lifecycle::State & /*previous_state*/ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::CallbackReturn Gen3::on_configure(
+  const rclcpp_lifecycle::State & /*previous_state*/) // GURNOORK ADDED ONE HERE
 {
-  int r = NO_ERROR_KINOVA;
-  r = InitAPI();
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not initialize API: Error code %d", r);
+  try{
+    transport_tcp_ = std::make_unique<Kinova::Api::TransportClientTcp>();
+    router_tcp_ = std::make_unique<Kinova::Api::RouterClient>(transport_tcp_.get(),[](Kinova::Api::KError err) {
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "TCP router error: %s", err.toString().c_str());
+    });
+    transport_tcp_->connect(robot_ip_, tcp_port_);
+
+    transport_udp_ = std::make_unique<Kinova::Api::TransportClientUdp>();
+    router_udp_ = std::make_unique<Kinova::Api::RouterClient>(transport_udp_.get(),[](Kinova::Api::KError err) {
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "UDP router error: %s", err.toString().c_str());
+    });
+    transport_udp_->connect(robot_ip_, udp_port_);
+
+    //Open session
+    Kinova::Api::Session::CreateSessionInfo session_info;
+    session_info.set_username(username_);
+    session_info.set_password(password_);
+    session_info.set_session_inactivity_timeout(60000);
+    session_info.set_connection_inactivity_timeout(2000);
+
+    session_manager_ = std::make_unique<Kinova::Api::SessionManager>(router_tcp_.get());
+    session_manager_->CreateSession(session_info);
+    session_manager_udp_ = std::make_unique<Kinova::Api::SessionManager>(router_udp_.get());
+    session_manager_udp_->CreateSession(session_info);
+
+    //Instantiate client stubs
+    base_ = std::make_unique<Kinova::Api::Base::BaseClient>(router_tcp_.get());
+    base_cyclic_ = std::make_unique<Kinova::Api::BaseCyclic::BaseCyclicClient>(router_udp_.get());
+    actuator_config_ = std::make_unique<Kinova::Api::ActuatorConfig::ActuatorConfigClient>(router_tcp_.get());
+    device_manager_ = std::make_unique<Kinova::Api::DeviceManager::DeviceManagerClient>(router_tcp_.get());
+  }
+  catch(const Kinova::Api::KDetailedException & ex) {
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Kortex exception during configure %s", ex.what());
     return hardware_interface::CallbackReturn::ERROR;
   }
-
-  r = InitFingers();
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not initialize Fingers: Error code %d", r);
-    CloseAPI();
+  catch(const std::exception & ex) {
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Kortex exception during configure %s", ex.what());
     return hardware_interface::CallbackReturn::ERROR;
   }
+  
+  //Verify joint count matches hardware
+  try{
+    auto actuator_count = base_->GetActuatorCount();
+    num_dofs_.first = actuator_count.count(); //arm joints
+    num_dofs_.second = 0; //gripper joints, need to confirm if this correct
 
-  r = StartControlAPI();
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not start API Control: Error code %d", r);
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-
-  if(!read_only_) {
-
-    r = SetAngularControl();
-    if (r != NO_ERROR_KINOVA) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not set angular control: Error code %d", r);
-      return hardware_interface::CallbackReturn::ERROR;
+    //Check for attached gripper
+    if(info_.joints.size() > num_dofs_.first){
+      num_dofs_.second = info_.joints.size() - num_dofs_.first;
     }
 
-    r = SetTorqueSafetyFactor(1.0f);
-    if (r != NO_ERROR_KINOVA) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not send : Error code %d", r);
-      return hardware_interface::CallbackReturn::ERROR;
-    }
-
-  } else {
-    r = SetCartesianControl();
-    if (r != NO_ERROR_KINOVA) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not set cartesian control: Error code %d", r);
+    if(info_.joints.size() != num_dofs_.first + num_dofs_.second){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Provided number of joints (%zu) does not match robot (%zu arm + %zu gripper).", info_.joints.size(), num_dofs_.first, num_dofs_.second);
       return hardware_interface::CallbackReturn::ERROR;
     }
   }
-
-  KinovaDevice robot;
-  r = GetActiveDevice(robot);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not get Active Device: Error code %d", r);
-    CloseAPI();
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-
-  // Check joint configuration
-  num_dofs_.first = 0;
-  num_dofs_.second = 0;
-  switch (robot.DeviceType) {
-    case ROBOT_CONFIG_JACOV2_6DOF_ASSISTIVE:
-    case ROBOT_CONFIG_JACOV2_6DOF_SERVICE:
-      // 6 arm + 2 fingers
-      num_dofs_.first = 6;
-      num_dofs_.second = 2;
-      break;
-    case ROBOT_CONFIG_SPHERICAL_6DOF_SERVICE:
-      // 6 arm + 3 fingers
-      num_dofs_.first = 6;
-      num_dofs_.second = 3;
-      break;
-    case ROBOT_CONFIG_SPHERICAL_7DOF_SERVICE:
-      // 7 arm + 3 fingers
-      num_dofs_.first = 7;
-      num_dofs_.second = 3;
-      break;
-    default:
-      RCLCPP_ERROR(
-        rclcpp::get_logger("Jaco2"), "Robot Identity (%d) not supported", robot.DeviceType);
-      CloseAPI();
-      return hardware_interface::CallbackReturn::ERROR;
-  }
-
-  if (hw_states_positions_.size() != num_dofs_.first + num_dofs_.second) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("Jaco2"),
-      "Provided number of joints (%ld) does not match those reported by the robot (%ld)",
-      hw_states_positions_.size(), num_dofs_.first + num_dofs_.second);
-    CloseAPI();
+  catch(const Kinova::Api::KDetailedException & ex){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not get actuator count: %s", ex.what());
     return hardware_interface::CallbackReturn::ERROR;
   }
 
   position_offsets_.resize(num_dofs_.first, 0.0);
 
-  if(!read_only_) {
-    if (!setTorqueMode(false)) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not set torque mode on configure");
+  //start in position mode
+  if(!read_only_){
+    if(!setTorqueMode(false)){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not disable torque mode on configure.");
       return hardware_interface::CallbackReturn::ERROR;
     }
   }
@@ -408,13 +459,13 @@ hardware_interface::CallbackReturn Jaco2::on_configure(
 }
 
 // Activate: start control api, angular control, 0 values
-hardware_interface::CallbackReturn Jaco2::on_activate(
-  const rclcpp_lifecycle::State & /*previous_state*/ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::CallbackReturn Gen3::on_activate(
+  const rclcpp_lifecycle::State & /*previous_state*/ ) // GURNOORK ADDED ONE HERE
 {
   // Initialize Default Values
   auto ret = read(rclcpp::Time(0), rclcpp::Duration(0, 0));
   if (ret != hardware_interface::return_type::OK) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not read default position.");
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not read default position.");
     return hardware_interface::CallbackReturn::ERROR;
   }
 
@@ -424,29 +475,29 @@ hardware_interface::CallbackReturn Jaco2::on_activate(
 
   for (std::size_t i = 0; i < hw_states_positions_.size(); i++) {
     if (std::isnan(hw_states_positions_[i])) {
-      hw_states_positions_[i] = 0;
+      hw_states_positions_[i] = 0.0;
     }
     if (std::isnan(hw_states_velocities_[i])) {
-      hw_states_velocities_[i] = 0;
+      hw_states_velocities_[i] = 0.0;
     }
     if (std::isnan(hw_states_efforts_[i])) {
-      hw_states_efforts_[i] = 0;
+      hw_states_efforts_[i] = 0.0;
     }
     if (std::isnan(hw_commands_positions_[i])) {
       hw_commands_positions_[i] = hw_states_positions_[i];
     }
     if (std::isnan(hw_commands_velocities_[i])) {
-      hw_commands_velocities_[i] = 0;
+      hw_commands_velocities_[i] = 0.0;
     }
     if (std::isnan(hw_commands_efforts_[i])) {
-      hw_commands_efforts_[i] = 0;
+      hw_commands_efforts_[i] = 0.0;
     }
     control_level_ = integration_level_t::kUNDEFINED;
   }
 
   if(!read_only_) {
     if (!setTorqueMode(false)) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not set torque mode on configure");
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not set torque mode on configure");
       return hardware_interface::CallbackReturn::ERROR;
     }
   }
@@ -456,11 +507,11 @@ hardware_interface::CallbackReturn Jaco2::on_activate(
 
 // This makes the reported joint values to start within urdf limits
 static const double hardcoded_pos_midpoints[7] = {0.0, M_PI, M_PI, 0.0, 0.0, 0.0, 0.0};
-bool Jaco2::initializeOffsets()
+bool Gen3::initializeOffsets()
 {
   // Clear and re-read offsets
-  position_offsets_.clear();
-  position_offsets_.resize(num_dofs_.first, 0.0);
+  //position_offsets_.clear();
+  position_offsets_.assign(num_dofs_.first, 0.0);
   if (read(rclcpp::Time(0), rclcpp::Duration(0, 0)) != hardware_interface::return_type::OK) {
     return false;
   }
@@ -481,18 +532,15 @@ bool Jaco2::initializeOffsets()
 }
 
 // Deactivate: stop trajectories, cartesian control, stop control api
-hardware_interface::CallbackReturn Jaco2::on_deactivate(
-  const rclcpp_lifecycle::State & /*previous_state*/ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::CallbackReturn Gen3::on_deactivate(
+  const rclcpp_lifecycle::State & /*previous_state*/ ) // GURNOORK ADDED ONE HERE
 {
   if (!setTorqueMode(false)) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not stop torque mode");
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not disable torque mode on deactivate.");
     return hardware_interface::CallbackReturn::ERROR;
   }
-
-  int r = NO_ERROR_KINOVA;
-  r = EraseAllTrajectories();
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not stop trajectories; Error code %d", r);
+  if (!stopMotion()) {
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not stop robot on deactivate.");
     return hardware_interface::CallbackReturn::ERROR;
   }
 
@@ -500,47 +548,53 @@ hardware_interface::CallbackReturn Jaco2::on_deactivate(
 }
 
 // Cleanup: close api, make sure joint number matches robot
-hardware_interface::CallbackReturn Jaco2::on_cleanup(
-  const rclcpp_lifecycle::State & /*previous_state*/ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::CallbackReturn Gen3::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/ ) // GURNOORK ADDED ONE HERE
 {
-  int r = NO_ERROR_KINOVA;
-  r = SetCartesianControl();
-  if (r != NO_ERROR_KINOVA) {
-    return hardware_interface::CallbackReturn::ERROR;
+  try{
+    if(session_manager_){
+      session_manager_->CloseSession();
+    }
+    if(session_manager_udp_){
+      session_manager_udp_->CloseSession();
+    }
   }
-  r = StopControlAPI();
-  if (r != NO_ERROR_KINOVA) {
-    return hardware_interface::CallbackReturn::ERROR;
-  }
-  r = CloseAPI();
-  if (r != NO_ERROR_KINOVA) {
-    return hardware_interface::CallbackReturn::ERROR;
-  }
+  catch(...){ }
+
+  //Smart pointers clean up transports/routers on destruction
+  actuator_config_.reset();
+  base_cyclic_.reset();
+  base_.reset();
+  device_manager_.reset();
+  session_manager_.reset();
+  session_manager_udp_.reset();
+  router_udp_.reset();
+  transport_udp_.reset();
+  router_tcp_.reset();
+  transport_tcp_.reset();
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 // Shutdown: make sure deactivate + cleanup calls happen
-hardware_interface::CallbackReturn Jaco2::on_shutdown(
+hardware_interface::CallbackReturn Gen3::on_shutdown(
   const rclcpp_lifecycle::State & previous_state)
 {
   if (previous_state.label() == "active") {
-    setTorqueMode(false);
-    EraseAllTrajectories();
+    try{setTorqueMode(false);} catch(...){}
+    try{stopMotion();} catch(...){}
   }
   return on_cleanup(previous_state);
 }
 
 // Error: make sure deactivate + cleanup calls happen
-hardware_interface::CallbackReturn Jaco2::on_error(
-  const rclcpp_lifecycle::State & /* previous_state */ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::CallbackReturn Gen3::on_error(
+  const rclcpp_lifecycle::State & /* previous_state */ ) // GURNOORK ADDED ONE HERE
 {
-  setTorqueMode(false);
-  EraseAllTrajectories();
-  SetCartesianControl();
-  StopControlAPI();
-  CloseAPI();
+  try{setTorqueMode(false);} catch(...){}
+  try{stopMotion();} catch(...){}
 
-  return hardware_interface::CallbackReturn::SUCCESS;
+  return on_cleanup(rclcpp_lifecycle::State());
 }
 
 /////// Inline Unit Conversions
@@ -563,198 +617,182 @@ inline static double fingerTicksToRadians(double ticks)
 }
 
 // Write Operations
-bool Jaco2::setTorqueMode(bool torqueMode)
+bool Gen3::setTorqueMode(bool torqueMode)
 {
-  int r = NO_ERROR_KINOVA;
-  EraseAllTrajectories();
+  if(!actuator_config_){
+    return true; //not yet configured, nothing to set
+  }
 
-  r = SwitchTrajectoryTorque(torqueMode ? TORQUE : POSITION);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not set torque mode : Error code %d", r);
+  Kinova::Api::ActuatorConfig::ControlModeInformation ctrl_mode_info;
+  ctrl_mode_info.set_control_mode(
+    torqueMode ? Kinova::Api::ActuatorConfig::ControlMode::TORQUE : Kinova::Api::ActuatorConfig::ControlMode::POSITION
+  );
+
+  try{
+    for(std::size_t i = 1; i <= num_dofs_.first; i++){
+      actuator_config_->SetControlMode(ctrl_mode_info, static_cast<uint32_t>(i));
+    }
+  }
+  catch(const Kinova::Api::KDetailedException & ex){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not set torque mode: %s", ex.what());
     return false;
   }
 
   return true;
 }
 
-bool Jaco2::sendVelocityCommand(const std::vector<double> & command)
+bool Gen3::stopMotion(){
+  if(!base_){
+    return true;
+  }
+
+  try{base_->Stop();}
+  catch(const Kinova::Api::KDetailedException & ex){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not stop robot: %s", ex.what());
+    return false;
+  }
+  return true;
+}
+
+bool Gen3::sendVelocityCommand(const std::vector<double> & command)
 {
-  // Check if in torque mode
-  {
-    int mode = 0;
-    int r = NO_ERROR_KINOVA;
-    r = GetTrajectoryTorqueMode(mode);
-    if (r != NO_ERROR_KINOVA) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not get torque mode : Error code %d", r);
-      return false;
-    }
-    if (mode) {
-      RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "In torque mode. Dropping...");
-      if (!setTorqueMode(false)) {
-        RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not exit torque mode.");
-        return true;
-      }
-    }
-  }
-
-  if (command.size() != num_dofs_.first + num_dofs_.second) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("Jaco2"), "Incorrect command size (%ld), expected (%ld)", command.size(),
-      num_dofs_.first + num_dofs_.second);
+  if(command.size() != num_dofs_.first + num_dofs_.second){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Incorrect command size (%zu), expected (%zu).", command.size(), num_dofs_.first, num_dofs_.second);
     return false;
   }
-  // Need to send an "advance trajectory" with a single point and the correct
-  // settings Angular velocity
-
-  AngularInfo joint_vel;
-  joint_vel.InitStruct();
-  joint_vel.Actuator1 = float(radiansToDegrees(command.at(0)));
-  joint_vel.Actuator2 = float(radiansToDegrees(command.at(1)));
-  joint_vel.Actuator3 = float(radiansToDegrees(command.at(2)));
-  joint_vel.Actuator4 = float(radiansToDegrees(command.at(3)));
-  joint_vel.Actuator5 = float(radiansToDegrees(command.at(4)));
-  joint_vel.Actuator6 = float(radiansToDegrees(command.at(5)));
-  int fingerStart = 6;
-  if (num_dofs_.first > 6) {
-    joint_vel.Actuator7 = float(radiansToDegrees(command.at(6)));
-    fingerStart++;
+  
+  //Arm joints
+  Kinova::Api::Base::JointSpeeds joint_speeds;
+  for(std::size_t i = 0; i<num_dofs_.first; i++){
+    auto * js = joint_speeds.add_joint_speeds();
+    js->set_joint_identifier(static_cast<uint32_t>(i));
+    js->set_value(static_cast<float>(radiansToDegrees(command.at(i))));
   }
 
-  TrajectoryPoint trajectory;
-  trajectory.InitStruct();
-  memset(&trajectory, 0, sizeof(trajectory));
-
-  trajectory.Position.Type = ANGULAR_VELOCITY;
-  trajectory.Position.HandMode = VELOCITY_MODE;
-  trajectory.Position.Actuators = joint_vel;
-
-  trajectory.Position.Fingers.Finger1 = float(radiansToFingerTicks(command.at(fingerStart)));
-  trajectory.Position.Fingers.Finger2 = float(radiansToFingerTicks(command.at(fingerStart + 1)));
-  if (num_dofs_.second > 2) {
-    trajectory.Position.Fingers.Finger3 = float(radiansToFingerTicks(command.at(fingerStart + 2)));
+  try{
+    base_->SendJointSpeedsCommand(joint_speeds);
   }
-
-  int r = NO_ERROR_KINOVA;
-  r = SendAdvanceTrajectory(trajectory);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("Jaco2"), "Could not send velocity command ; Error Code: %d", r);
+  catch(const Kinova::Api::KDetailedException & ex){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not send velocity command: %s", ex.what());
     return false;
+  }
+
+  // gripper
+  if(num_dofs_.second > 0){
+    Kinova::Api::Base::GripperCommand gripper_cmd;
+    gripper_cmd.set_mode(Kinova::Api::Base::GRIPPER_SPEED);
+    auto * finger = gripper_cmd.mutable_gripper()->add_finger();
+    finger->set_finger_identifier(1);
+    //Gripper command is normalized to [1,0]
+    //map from rad/s if needed
+
+    finger->set_value(static_cast<float>(command.at(num_dofs_.first)));
+    try{
+      base_->SendGripperCommand(gripper_cmd);
+    }
+    catch(const Kinova::Api::KDetailedException & ex){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not send gripper velocity: %s", ex.what());
+    return false;
+    }
   }
 
   return true;
 }
 
-bool Jaco2::sendPositionCommand(const std::vector<double> & command)
+bool Gen3::sendPositionCommand(const std::vector<double> & command)
 {
-  // Check if in torque mode
-  {
-    int mode = 0;
-    int r = NO_ERROR_KINOVA;
-    r = GetTrajectoryTorqueMode(mode);
-    if (r != NO_ERROR_KINOVA) {
-      RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not get torque mode : Error code %d", r);
-      return false;
-    }
-    if (mode) {
-      RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "In torque mode. Dropping...");
-      if (!setTorqueMode(false)) {
-        RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not exit torque mode.");
-        return true;
-      }
-    }
+  if(command.size() != num_dofs_.first + num_dofs_.second){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Incorrect command size (%zu), expected (%zu).", command.size(), num_dofs_.first, num_dofs_.second);
+    return false;
   }
-
+  
   static std::vector<double> prev_command;
 
-  if (command.size() != num_dofs_.first + num_dofs_.second) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("Jaco2"), "Incorrect command size (%ld), expected (%ld)", command.size(),
-      num_dofs_.first + num_dofs_.second);
-    return false;
-  }
-  // Need to send an "advance trajectory" with a single point and the correct
-  // settings Angular velocity
+  //Arm joints
+  //only send a new traj if the target has changed
+  if(command != prev_command){
+    Kinova::Api::Base::ConstrainedJointAngles joint_angles;
+    for(std::size_t i = 0; i<num_dofs_.first; i++){
+      auto * ja = joint_angles.mutable_joint_angles()->add_joint_angles();
+      ja->set_joint_identifier(static_cast<uint32_t>(i));
+      //remove offset before sending, robot expects raw hardware degrees
+      double ang_deg = radiansToDegrees(command.at(i) - position_offsets_[i]);
+      //warp to [0, 360) for Kortex API
+      while(ang_deg < 0.0){
+        ang_deg += 360.0;
+      }
+      while(ang_deg >= 360.0){
+        ang_deg -= 360.0;
+      }
+      ja->set_value(static_cast<float>(ang_deg));
+    }
 
-  AngularInfo joint_pos;
-  joint_pos.InitStruct();
-  joint_pos.Actuator1 = float(radiansToDegrees(command.at(0) - position_offsets_[0]));
-  joint_pos.Actuator2 = float(radiansToDegrees(command.at(1) - position_offsets_[1]));
-  joint_pos.Actuator3 = float(radiansToDegrees(command.at(2) - position_offsets_[2]));
-  joint_pos.Actuator4 = float(radiansToDegrees(command.at(3) - position_offsets_[3]));
-  joint_pos.Actuator5 = float(radiansToDegrees(command.at(4) - position_offsets_[4]));
-  joint_pos.Actuator6 = float(radiansToDegrees(command.at(5) - position_offsets_[5]));
-  int fingerStart = 6;
-  if (num_dofs_.first > 6) {
-    joint_pos.Actuator7 = float(radiansToDegrees(command.at(6) - position_offsets_[6]));
-    fingerStart++;
-  }
-
-  TrajectoryPoint trajectory;
-  trajectory.InitStruct();
-  memset(&trajectory, 0, sizeof(trajectory));
-
-  trajectory.Position.Delay = 0.0;
-  trajectory.Position.Type = ANGULAR_POSITION;
-  trajectory.Position.HandMode = POSITION_MODE;
-  trajectory.Position.Actuators = joint_pos;
-
-  trajectory.Position.Fingers.Finger1 = float(radiansToFingerTicks(command.at(fingerStart)));
-  trajectory.Position.Fingers.Finger2 = float(radiansToFingerTicks(command.at(fingerStart + 1)));
-  if (num_dofs_.second > 2) {
-    trajectory.Position.Fingers.Finger3 = float(radiansToFingerTicks(command.at(fingerStart + 2)));
-  }
-
-  // Clear queue if new command
-  if (command != prev_command) {
-    EraseAllTrajectories();
-    prev_command = command;
-  }
-
-  int r = NO_ERROR_KINOVA;
-  r = SendAdvanceTrajectory(trajectory);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("Jaco2"), "Could not send position command ; Error Code: %d", r);
-    return false;
-  }
-
-  return true;
-}
-
-bool Jaco2::sendEffortCommand(const std::vector<double> & command)
-{
-  // Check if in torque mode
-  int mode = 0;
-  int r = NO_ERROR_KINOVA;
-  r = GetTrajectoryTorqueMode(mode);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not get torque mode : Error code %d", r);
-    return false;
-  }
-  if (!mode) {
-    RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Dropped out of torque mode. Retrying...");
-    if (!setTorqueMode(true)) {
-      RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not enter torque mode.");
-      return true;
+    try{
+      base_->PlayJointTrajectory(joint_angles);
+      prev_command = command;
+    }
+    catch(const Kinova::Api::KDetailedException & ex){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not send position command: %s", ex.what());
+      return false;
     }
   }
 
-  // Send Torque Command
-  float joint_eff[COMMAND_SIZE] = {0};
-  std::copy(command.begin(), command.end(), joint_eff);
-
-  r = SendAngularTorqueCommand(joint_eff);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_ERROR(rclcpp::get_logger("Jaco2"), "Could not send effort command : Error code %d", r);
-    return false;
+  // gripper
+  if(num_dofs_.second > 0){
+    Kinova::Api::Base::GripperCommand gripper_cmd;
+    gripper_cmd.set_mode(Kinova::Api::Base::GRIPPER_POSITION);
+    auto * finger = gripper_cmd.mutable_gripper()->add_finger();
+    finger->set_finger_identifier(1);
+    //Gripper command is normaloized [1,0]
+    //TODO: adjust mapping to URDF limits
+    finger->set_value(static_cast<float>(command.at(num_dofs_.first)));
+    try{
+      base_->SendGripperCommand(gripper_cmd);
+    }
+    catch(const Kinova::Api::KDetailedException & ex){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not send gripper position: %s", ex.what());
+      return false;
+    }
   }
 
   return true;
 }
 
-hardware_interface::return_type Jaco2::write(
-  const rclcpp::Time & /*time*/ /*, const rclcpp::Duration & /*period*/ /*) // GURNOORK ADDED two HERE
+bool Gen3::sendEffortCommand(const std::vector<double> & command)
+{
+  if(command.size() != num_dofs_.first + num_dofs_.second){
+    RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Incorrect command size (%zu), expected (%zu).", command.size(), num_dofs_.first, num_dofs_.second);
+    return false;
+  }
+
+  Kinova::Api::BaseCyclic::Command cyclic_cmd;
+  cyclic_cmd.set_frame_id(cyclic_feedback_.frame_id() + 1);
+
+  for(std::size_t i = 0; i < num_dofs_.first; i++){
+    auto * actuator_cmd = cyclic_cmd.add_actuators();
+    // Flags: SERVOING (bit 0) | TORQUE_FEED_FORWARD (bit 4)
+    // These are defined in the BaseCyclic ActuatorCommand proto.
+    // Using raw values for portability across API versions.
+    actuator_cmd->set_flags(0x11);
+    actuator_cmd->set_position(cyclic_feedback_.actuators(static_cast<int>(i)).position());  // hold current position
+    actuator_cmd->set_velocity(0.0f);
+    actuator_cmd->set_torque_joint(static_cast<float>(command.at(i)));
+
+  }
+
+  try{
+    base_cyclic_->Refresh(cyclic_cmd);
+  }
+  catch(const Kinova::Api::KDetailedException & ex){
+      RCLCPP_ERROR(rclcpp::get_logger("Gen3"), "Could not send effort command: %s", ex.what());
+      return false;
+  }
+
+  return true;
+}
+
+hardware_interface::return_type Gen3::write(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/ ) // GURNOORK ADDED two HERE
 {
   if(read_only_) return hardware_interface::return_type::OK;
 
@@ -781,107 +819,41 @@ hardware_interface::return_type Jaco2::write(
 }
 
 // Read Operation
-hardware_interface::return_type Jaco2::read(
-  const rclcpp::Time & /*time*/ /*, const rclcpp::Duration & /*period*/ /*) // GURNOORK ADDED ONE HERE
+hardware_interface::return_type Gen3::read(
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/ ) // GURNOORK ADDED ONE HERE
 {
-  // make sure that pos, vel, and eff are up to date.
-  // TODO: If there is too much lag between calling read()
-  // and getting the actual values back, we'll need to be
-  // reading values constantly and storing them locally, so
-  // at least there is a recent value available for the controller.
-
-  AngularPosition arm_pos;
-  AngularPosition arm_vel;
-  AngularPosition arm_eff;
-
-  // Requires 3 separate calls to the USB
-  int r = NO_ERROR_KINOVA;
-  r = GetAngularPosition(arm_pos);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not read position; Error code %d", r);
-    return hardware_interface::return_type::OK;
+  try{
+    cyclic_feedback_ = base_cyclic_->RefreshFeedback();
   }
-  r = GetAngularVelocity(arm_vel);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not read velocity; Error code %d", r);
-    return hardware_interface::return_type::OK;
-  }
-  r = GetAngularForce(arm_eff);
-  if (r != NO_ERROR_KINOVA) {
-    RCLCPP_WARN(rclcpp::get_logger("Jaco2"), "Could not read effort; Error code %d", r);
-    return hardware_interface::return_type::OK;
+  catch(const Kinova::Api::KDetailedException & ex){
+      RCLCPP_WARN(rclcpp::get_logger("Gen3"), "Could not read feedback: %s", ex.what());
+      return hardware_interface::return_type::OK;
   }
 
-  hw_states_positions_[0] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator1)) + position_offsets_[0];
-  hw_states_positions_[1] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator2)) + position_offsets_[1];
-  hw_states_positions_[2] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator3)) + position_offsets_[2];
-  hw_states_positions_[3] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator4)) + position_offsets_[3];
-  hw_states_positions_[4] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator5)) + position_offsets_[4];
-  hw_states_positions_[5] =
-    degreesToRadians(double(arm_pos.Actuators.Actuator6)) + position_offsets_[5];
-  if (num_dofs_.first > 6) {
-    hw_states_positions_[6] =
-      degreesToRadians(double(arm_pos.Actuators.Actuator7)) + position_offsets_[6];
-    hw_states_positions_[7] = fingerTicksToRadians(double(arm_pos.Fingers.Finger1));
-    hw_states_positions_[8] = fingerTicksToRadians(double(arm_pos.Fingers.Finger2));
-  } else {
-    hw_states_positions_[6] = fingerTicksToRadians(double(arm_pos.Fingers.Finger1));
-    hw_states_positions_[7] = fingerTicksToRadians(double(arm_pos.Fingers.Finger2));
-  }
-  if (num_dofs_.second > 2) {
-    hw_states_positions_[hw_states_positions_.size() - 1] =
-      fingerTicksToRadians(double(arm_pos.Fingers.Finger3));
+  //Arm joints (indices 0...num_dofs_.first-1)
+  for(std::size_t i = 0; i < num_dofs_.first; i++){
+    const auto & actuator = cyclic_feedback_.actuators(static_cast<int>(i));
+    hw_states_positions_[i] = degreesToRadians(static_cast<double>(actuator.position())) + position_offsets_[i];
+    hw_states_velocities_[i] = degreesToRadians(static_cast<double>(actuator.velocity()));
+    hw_states_efforts_[i] = static_cast<double>(actuator.torque());
   }
 
-  // According to kinova-ros, the reported values are half of the actual.
-  hw_states_velocities_[0] = degreesToRadians(double(arm_vel.Actuators.Actuator1));
-  hw_states_velocities_[1] = degreesToRadians(double(arm_vel.Actuators.Actuator2));
-  hw_states_velocities_[2] = degreesToRadians(double(arm_vel.Actuators.Actuator3));
-  hw_states_velocities_[3] = degreesToRadians(double(arm_vel.Actuators.Actuator4));
-  hw_states_velocities_[4] = degreesToRadians(double(arm_vel.Actuators.Actuator5));
-  hw_states_velocities_[5] = degreesToRadians(double(arm_vel.Actuators.Actuator6));
-  if (num_dofs_.first > 6) {
-    hw_states_velocities_[6] = degreesToRadians(double(arm_vel.Actuators.Actuator7));
-    hw_states_velocities_[7] = fingerTicksToRadians(double(arm_vel.Fingers.Finger1));
-    hw_states_velocities_[8] = fingerTicksToRadians(double(arm_vel.Fingers.Finger2));
-  } else {
-    hw_states_velocities_[6] = fingerTicksToRadians(double(arm_vel.Fingers.Finger1));
-    hw_states_velocities_[7] = fingerTicksToRadians(double(arm_vel.Fingers.Finger2));
-  }
-  if (num_dofs_.second > 2) {
-    hw_states_velocities_[hw_states_velocities_.size() - 1] =
-      fingerTicksToRadians(double(arm_vel.Fingers.Finger3));
-  }
-
-  hw_states_efforts_[0] = arm_eff.Actuators.Actuator1;
-  hw_states_efforts_[1] = arm_eff.Actuators.Actuator2;
-  hw_states_efforts_[2] = arm_eff.Actuators.Actuator3;
-  hw_states_efforts_[3] = arm_eff.Actuators.Actuator4;
-  hw_states_efforts_[4] = arm_eff.Actuators.Actuator5;
-  hw_states_efforts_[5] = arm_eff.Actuators.Actuator6;
-  if (num_dofs_.first > 6) {
-    hw_states_efforts_[6] = arm_eff.Actuators.Actuator7;
-    hw_states_efforts_[7] = arm_eff.Fingers.Finger1;
-    hw_states_efforts_[8] = arm_eff.Fingers.Finger2;
-  } else {
-    hw_states_efforts_[6] = arm_eff.Fingers.Finger1;
-    hw_states_efforts_[7] = arm_eff.Fingers.Finger2;
-  }
-  if (num_dofs_.second > 2) {
-    hw_states_efforts_[hw_states_efforts_.size() - 1] = arm_eff.Fingers.Finger3;
+  //Gripper joints (indices num_dofs_.first...end)
+  if(num_dofs_.second > 0 && cyclic_feedback_.has_interconnect()){
+    const auto & gripper_fb = cyclic_feedback_.interconnect().gripper_feedback();
+    if (gripper_fb.motor_size() > 0) {
+      std::size_t gi = num_dofs_.first;
+      hw_states_positions_[gi] = static_cast<double>(gripper_fb.motor(0).position());
+      hw_states_velocities_[gi] = static_cast<double>(gripper_fb.motor(0).velocity());
+      hw_states_efforts_[gi] = static_cast<double>(gripper_fb.motor(0).current_motor());
+    }
   }
 
   return hardware_interface::return_type::OK;
 }
 
 };  // namespace ada_hardware
-*/
+
 
 #include "pluginlib/class_list_macros.hpp"
-
-// PLUGINLIB_EXPORT_CLASS(ada_hardware::Gen3, hardware_interface::SystemInterface)
+PLUGINLIB_EXPORT_CLASS(ada_hardware::Gen3, hardware_interface::SystemInterface)

@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro
     name="ada_ros2_control"
-    params="name initial_positions_file sim"
+    params="name initial_positions_file sim robot_ip"
   >
     <xacro:property
       name="initial_positions"
@@ -30,6 +30,7 @@
         </xacro:if>
         <xacro:if value="${sim == 'real'}">
           <plugin>ada_hardware/Gen3</plugin>
+          <param name="robot_ip">${robot_ip}</param>
         </xacro:if>
       </hardware>
       <joint name="ada_joint_1">

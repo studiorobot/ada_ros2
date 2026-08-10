@@ -79,7 +79,7 @@ Param | Description | Default |
     gripper_joint_name="robotiq_85_left_knuckle_joint"
     dof="7"
     vision="true"
-    robot_ip="192.168.1.10"
+    robot_ip="192.168.1.11"
     username="admin"
     password="admin"
     port="10000"

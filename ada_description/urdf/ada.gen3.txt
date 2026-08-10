@@ -70,7 +70,7 @@
     gripper_max_velocity="100.0"
     gripper_max_force="100.0"
     vision="true"
-    robot_ip="192.168.11.11"
+    robot_ip="192.168.1.10"
     username="admin"
     password="admin"
     port="10000"

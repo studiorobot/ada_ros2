@@ -24,7 +24,7 @@
   </joint>
   <!--xacro:j2n6s200 base_parent="${robot_root}"/-->
   <joint name="ada_base_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 -0.20 0.13"/>
     <parent link="root_tilt"/>
     <child link="ada_base_link"/>
   </joint>

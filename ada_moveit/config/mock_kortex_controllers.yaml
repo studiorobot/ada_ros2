@@ -54,7 +54,7 @@ jaco_arm_cartesian_controller:
     ros__parameters:
       end_effector_link: "ada_end_effector_link"
       robot_base_link: "ada_base_link"
-      ik_solver: "selectively_damped_least_squares"
+      ik_solver: "damped_least_squares"
       joints:
         - ada_joint_1
         - ada_joint_2

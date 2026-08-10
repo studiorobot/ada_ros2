@@ -31,6 +31,11 @@
 #ifndef ADA_HARDWARE_GEN3_H_
 #define ADA_HARDWARE_GEN3_H_
 
+// Required before Kortex transport headers — they use sockaddr_in but don't
+// include the POSIX socket headers themselves.
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 // Kortex API files
 #include <SessionManager.h>
 #include <DeviceConfigClientRpc.h>
@@ -52,6 +57,7 @@
 #include <cmath>
 #include <memory>
 #include <mutex>
+#include <string>
 
 // ROS
 #include "hardware_interface/system_interface.hpp"
@@ -104,6 +110,28 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
 private:
+  // Connection parameters
+  std::string robot_ip_;
+  int tcp_port_{10000};
+  int udp_port_{10001};
+  std::string username_{"admin"};
+  std::string password_{"admin"};
+
+  // Kortex API Objects
+  std::unique_ptr<Kinova::Api::TransportClientTcp> transport_tcp_;
+  std::unique_ptr<Kinova::Api::RouterClient> router_tcp_;
+  std::unique_ptr<Kinova::Api::TransportClientUdp> transport_udp_;
+  std::unique_ptr<Kinova::Api::RouterClient> router_udp_;
+
+  std::unique_ptr<Kinova::Api::SessionManager> session_manager_;
+  std::unique_ptr<Kinova::Api::SessionManager> session_manager_udp_;
+  std::unique_ptr<Kinova::Api::Base::BaseClient> base_;
+  std::unique_ptr<Kinova::Api::BaseCyclic::BaseCyclicClient> base_cyclic_;
+  std::unique_ptr<Kinova::Api::ActuatorConfig::ActuatorConfigClient> actuator_config_;
+  std::unique_ptr<Kinova::Api::DeviceManager::DeviceManagerClient> device_manager_;
+
+  Kinova::Api::BaseCyclic::Feedback cyclic_feedback_;
+
   // Store the joint command/states
   std::vector<double> position_offsets_;  // Handles SO(2) wrap
   std::vector<double> hw_commands_positions_;
@@ -136,6 +164,7 @@ private:
   bool sendPositionCommand(const std::vector<double> & command);
   bool sendEffortCommand(const std::vector<double> & command);
   bool setTorqueMode(bool torqueMode);
+  bool stopMotion();
 
   bool initializeOffsets();
   

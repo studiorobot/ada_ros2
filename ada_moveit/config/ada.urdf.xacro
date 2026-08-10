@@ -11,6 +11,14 @@
     name="sim"
     default="real"
   />
+  <xacro:arg
+    name="robot_ip"
+    default="192.168.1.10"
+  />
+  <xacro:arg
+    name="use_fake_hardware"
+    default="${'$(arg sim)' != 'real'}"
+  />
 
   <!-- Import ada urdf file -->
   <xacro:include filename="$(find ada_description)/urdf/ada.xacro"/>
@@ -18,15 +26,16 @@
   <!-- Import control_xacro -->
   <xacro:include filename="ada.ros2_control.xacro"/>
 
-  <!-- Only add the ADAHardware ros2_control for real hardware.
-       For mock/mock_kortex, the Kortex hardware interface (ada_KortexMultiInterfaceHardware) 
-       from ada_description already provides fake hardware support. 
+  <!-- Only add the ADAHardware ros2_control for simulation modes.
+       For real hardware (sim='real'), KortexMultiInterfaceHardware from ada_description 
+       handles the robot when use_fake_hardware=false.
        Adding both causes duplicate interface registration. -->
-  <xacro:if value="${'$(arg sim)' == 'real'}">
+  <xacro:unless value="${'$(arg sim)' == 'real'}">
     <xacro:ada_ros2_control
       name="ADAHardware"
       initial_positions_file="$(arg initial_positions_file)"
       sim="$(arg sim)"
+      robot_ip="$(arg robot_ip)"
     />
-  </xacro:if>
+  </xacro:unless>
 </robot>
