@@ -6,18 +6,31 @@ calibrate_camera:
     # Frame names
     robot_end_effector_frame: "forkTip"
     extrinsics_base_frame: "j2n6s200_end_effector"
+    arm_joint_names:
+      - "j2n6s200_joint_1"
+      - "j2n6s200_joint_2"
+      - "j2n6s200_joint_3"
+      - "j2n6s200_joint_4"
+      - "j2n6s200_joint_5"
+      - "j2n6s200_joint_6"
+    robot_base_link_frame: "j2n6s200_link_base"
+    # Use MoveIt planned motion (IK + plan + execute) instead of real-time
+    # Cartesian twist servoing to reach each sweep pose. More robust to
+    # kinematic singularities; intended for verifying the sweep in
+    # simulation, not for the force-compliant motion used on real hardware.
+    use_planned_motion: true
 
     # Whether to run camera calibration online or not
     run_online: true
     # Where to save/load calibration data.
     # NOTE: Although it is not good practice to hardcode paths, the only way to avoid this is to
     # save the files to the built package's share directory, which hinders pushing it to Github.
-    data_dir: ~/Workspace/ada_ws/src/ada_ros2/ada_calibrate_camera/data
+    data_dir: /home/Shared/delicious/ada/workspace/src/ada_ros2/ada_calibrate_camera/data
     # Where to save the calibration results
-    output_calib_name: ~/Workspace/ada_ws/src/ada_ros2/ada_calibrate_camera/config/calibs/auto.yaml
+    output_calib_name: /home/Shared/delicious/ada/workspace/src/ada_ros2/ada_calibrate_camera/config/calibs/auto.yaml
     # A calibration file to serve as reference. If the translation or rotation error from the reference
     # calibration is higher than thresholds, reject the calibration.
-    reference_calib_name: ~/Workspace/ada_ws/src/ada_ros2/ada_calibrate_camera/config/calibs/manual.yaml
+    reference_calib_name: /home/Shared/delicious/ada/workspace/src/ada_ros2/ada_calibrate_camera/config/calibs/manual.yaml
     reference_translation_error_threshold: 0.03 # meters
     reference_rotation_error_threshold: 0.15 # radians
     # If run_online is false, this parameter specifies the folder to load data from
@@ -26,7 +39,7 @@ calibrate_camera:
     # Charuco board parameters
     charuco_n_rows: 9
     charuco_n_cols: 14
-    charuco_sq_length_m: 0.0188 # 0.0351
+    charuco_sq_length_m: 0.01843 # 0.0351
     charuco_marker_length_m: 0.0138 # 0.0257
     charuco_predefined_dictionary: 5  # https://docs.opencv.org/4.x/de/d67/group__objdetect__aruco.html#ga4e13135a118f497c6172311d601ce00d
 

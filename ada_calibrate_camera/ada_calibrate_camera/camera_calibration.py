@@ -379,124 +379,138 @@ class CameraCalibration:
         best_rotation_error = np.inf
         best_method = None
         for method in self.methods:
-            R_cam2gripper, t_cam2gripper = cv2.calibrateHandEye(
-                self.Rs_gripper2base,
-                self.ts_gripper2base,
-                self.Rs_target2cam,
-                self.ts_target2cam,
-                method=method,
-            )
+            try:
+                R_cam2gripper, t_cam2gripper = cv2.calibrateHandEye(
+                    self.Rs_gripper2base,
+                    self.ts_gripper2base,
+                    self.Rs_target2cam,
+                    self.ts_target2cam,
+                    method=method,
+                )
 
-            # Check if the calibration is valid relative to the reference
-            if check_reference:
-                translation_error = CameraCalibration.translation_error(
-                    ref_t_cam2gripper, t_cam2gripper
-                )
-                rotation_error = CameraCalibration.rotation_error(
-                    ref_R_cam2gripper, R_cam2gripper
-                )
-                if (
-                    ref_translation_error_threshold is not None
-                    and translation_error > ref_translation_error_threshold
-                ):
+                # Check if the calibration is valid relative to the reference
+                if check_reference:
+                    translation_error = CameraCalibration.translation_error(
+                        ref_t_cam2gripper, t_cam2gripper
+                    )
+                    rotation_error = CameraCalibration.rotation_error(
+                        ref_R_cam2gripper, R_cam2gripper
+                    )
+                    if (
+                        ref_translation_error_threshold is not None
+                        and translation_error > ref_translation_error_threshold
+                    ):
+                        print(
+                            (
+                                f"WARNING: Translation error from reference is {translation_error}, greater than "
+                                f"the threshold {ref_translation_error_threshold}. Rejecting."
+                            ),
+                            flush=True,
+                        )
+                        continue
+                    if (
+                        ref_rotation_error_threshold is not None
+                        and rotation_error > ref_rotation_error_threshold
+                    ):
+                        print(
+                            (
+                                f"WARNING: Rotation error from reference is {rotation_error}, greater than "
+                                f"the threshold {ref_rotation_error_threshold}. Rejecting."
+                            ),
+                            flush=True,
+                        )
+                        continue
+
+                # Convert to a homogeneous transform
+                T_cam2gripper = np.eye(4)
+                T_cam2gripper[:3, :3] = R_cam2gripper
+                T_cam2gripper[:3, 3] = t_cam2gripper.reshape((3,))
+
+                # For each sample, get the target's pose is base frame
+                Rs_target2base = []
+                ts_target2base = []
+                # pylint: disable=consider-using-enumerate
+                for i in range(len(self.Rs_target2cam)):
+                    # Get the homogeneous transform from the gripper to the base
+                    T_gripper2base = np.eye(4)
+                    if self.Rs_gripper2base[i].shape == (3,):
+                        T_gripper2base[:3, :3] = R.from_rotvec(
+                            self.Rs_gripper2base[i]
+                        ).as_matrix()
+                    else:
+                        T_gripper2base[:3, :3] = self.Rs_gripper2base[i]
+                    T_gripper2base[:3, 3] = self.ts_gripper2base[i]
+
+                    # Get the homogeneous transform from the target to the camera
+                    T_target2cam = np.eye(4)
+                    if self.Rs_target2cam[i].shape == (3,):
+                        T_target2cam[:3, :3] = R.from_rotvec(
+                            self.Rs_target2cam[i]
+                        ).as_matrix()
+                    else:
+                        T_target2cam[:3, :3] = self.Rs_target2cam[i]
+                    T_target2cam[:3, 3] = self.ts_target2cam[i]
+
+                    # Compute the homogeneous transform from the target to the base
+                    T_target2base = T_gripper2base @ T_cam2gripper @ T_target2cam
+
+                    # Extract the rotation and translation
+                    Rs_target2base.append(R.from_matrix(T_target2base[:3, :3]))
+                    ts_target2base.append(T_target2base[:3, 3])
+
+                # Compute the translation and rotation errors
+                translation_errors = []
+                rotation_errors = []
+                for i in range(
+                    len(Rs_target2base)
+                ):  # pylint: disable=consider-using-enumerate
+                    for j in range(i + 1, len(Rs_target2base)):
+                        translation_errors.append(
+                            CameraCalibration.translation_error(
+                                ts_target2base[i], ts_target2base[j]
+                            )
+                        )
+                        rotation_errors.append(
+                            CameraCalibration.rotation_error(
+                                Rs_target2base[i].as_matrix(),
+                                Rs_target2base[j].as_matrix(),
+                            )
+                        )
+
+                # Average the errors
+                translation_error = np.percentile(translation_errors, 50)
+                rotation_error = np.percentile(rotation_errors, 50)
+
+                # Print the calibration results
+                if verbose:
+                    print(f"Method: {method}", flush=True)
+                    print(f"Translation error: {translation_error}", flush=True)
+                    print(f"Rotation error: {rotation_error}", flush=True)
                     print(
-                        (
-                            f"WARNING: Translation error from reference is {translation_error}, greater than "
-                            f"the threshold {ref_translation_error_threshold}. Rejecting."
-                        ),
+                        f"R_cam2gripper: {R.from_matrix(R_cam2gripper).as_euler('ZYX')}",
                         flush=True,
                     )
-                    continue
-                if (
-                    ref_rotation_error_threshold is not None
-                    and rotation_error > ref_rotation_error_threshold
-                ):
-                    print(
-                        (
-                            f"WARNING: Rotation error from reference is {rotation_error}, greater than "
-                            f"the threshold {ref_rotation_error_threshold}. Rejecting."
-                        ),
-                        flush=True,
-                    )
-                    continue
+                    print(f"t_cam2gripper: {t_cam2gripper}", flush=True)
 
-            # Convert to a homogeneous transform
-            T_cam2gripper = np.eye(4)
-            T_cam2gripper[:3, :3] = R_cam2gripper
-            T_cam2gripper[:3, 3] = t_cam2gripper.reshape((3,))
-
-            # For each sample, get the target's pose is base frame
-            Rs_target2base = []
-            ts_target2base = []
-            # pylint: disable=consider-using-enumerate
-            for i in range(len(self.Rs_target2cam)):
-                # Get the homogeneous transform from the gripper to the base
-                T_gripper2base = np.eye(4)
-                if self.Rs_gripper2base[i].shape == (3,):
-                    T_gripper2base[:3, :3] = R.from_rotvec(
-                        self.Rs_gripper2base[i]
-                    ).as_matrix()
-                else:
-                    T_gripper2base[:3, :3] = self.Rs_gripper2base[i]
-                T_gripper2base[:3, 3] = self.ts_gripper2base[i]
-
-                # Get the homogeneous transform from the target to the camera
-                T_target2cam = np.eye(4)
-                if self.Rs_target2cam[i].shape == (3,):
-                    T_target2cam[:3, :3] = R.from_rotvec(
-                        self.Rs_target2cam[i]
-                    ).as_matrix()
-                else:
-                    T_target2cam[:3, :3] = self.Rs_target2cam[i]
-                T_target2cam[:3, 3] = self.ts_target2cam[i]
-
-                # Compute the homogeneous transform from the target to the base
-                T_target2base = T_gripper2base @ T_cam2gripper @ T_target2cam
-
-                # Extract the rotation and translation
-                Rs_target2base.append(R.from_matrix(T_target2base[:3, :3]))
-                ts_target2base.append(T_target2base[:3, 3])
-
-            # Compute the translation and rotation errors
-            translation_errors = []
-            rotation_errors = []
-            for i in range(
-                len(Rs_target2base)
-            ):  # pylint: disable=consider-using-enumerate
-                for j in range(i + 1, len(Rs_target2base)):
-                    translation_errors.append(
-                        CameraCalibration.translation_error(
-                            ts_target2base[i], ts_target2base[j]
-                        )
-                    )
-                    rotation_errors.append(
-                        CameraCalibration.rotation_error(
-                            Rs_target2base[i].as_matrix(), Rs_target2base[j].as_matrix()
-                        )
-                    )
-
-            # Average the errors
-            translation_error = np.percentile(translation_errors, 50)
-            rotation_error = np.percentile(rotation_errors, 50)
-
-            # Print the calibration results
-            if verbose:
-                print(f"Method: {method}", flush=True)
-                print(f"Translation error: {translation_error}", flush=True)
-                print(f"Rotation error: {rotation_error}", flush=True)
+                # Save the best calibration
+                if translation_error < best_translation_error:
+                    best_translation_error = translation_error
+                    best_rotation_error = rotation_error
+                    best_R_cam2gripper = R_cam2gripper
+                    best_t_cam2gripper = t_cam2gripper
+                    best_method = method
+            except ValueError as e:
+                # cv2.calibrateHandEye can return a degenerate (e.g., zero-norm)
+                # rotation matrix when the samples lack sufficient rotational
+                # diversity (e.g., too few samples, or some samples came from
+                # incomplete/timed-out moves). Skip this method rather than
+                # crashing the whole calibration run.
                 print(
-                    f"R_cam2gripper: {R.from_matrix(R_cam2gripper).as_euler('ZYX')}",
+                    f"WARNING: Method {method} produced an invalid calibration "
+                    f"({e}). Skipping.",
                     flush=True,
                 )
-                print(f"t_cam2gripper: {t_cam2gripper}", flush=True)
-
-            # Save the best calibration
-            if translation_error < best_translation_error:
-                best_translation_error = translation_error
-                best_rotation_error = rotation_error
-                best_R_cam2gripper = R_cam2gripper
-                best_t_cam2gripper = t_cam2gripper
-                best_method = method
+                continue
 
         # Save the calibration
         if save_data and self.data_dir is not None and best_R_cam2gripper is not None:

@@ -23,7 +23,6 @@ from geometry_msgs.msg import TwistStamped, Vector3
 from moveit_msgs.msg import MoveItErrorCodes
 import numpy as np
 from pymoveit2 import MoveIt2, MoveIt2State
-from pymoveit2.robots import kinova
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.duration import Duration
@@ -99,8 +98,8 @@ class CalibrateCameraNode(Node):
         callback_group = ReentrantCallbackGroup()
         self.moveit2 = MoveIt2(
             node=self,
-            joint_names=kinova.joint_names(),
-            base_link_name=kinova.base_link_name(),
+            joint_names=self.arm_joint_names,
+            base_link_name=self.robot_base_link_frame,
             end_effector_name=self.robot_end_effector_frame,
             group_name="jaco_arm",
             callback_group=callback_group,
@@ -260,6 +259,29 @@ class CalibrateCameraNode(Node):
                 read_only=True,
             ),
         ).value
+        self.arm_joint_names = self.declare_parameter(
+            "arm_joint_names",
+            [f"ada_joint_{i}" for i in range(1, 8)],
+            ParameterDescriptor(
+                name="arm_joint_names",
+                type=ParameterType.PARAMETER_STRING_ARRAY,
+                description=(
+                    "The names of the arm's joints, in order. Must match the "
+                    "names published on /joint_states."
+                ),
+                read_only=True,
+            ),
+        ).value
+        self.robot_base_link_frame = self.declare_parameter(
+            "robot_base_link_frame",
+            "ada_base_link",
+            ParameterDescriptor(
+                name="robot_base_link_frame",
+                type=ParameterType.PARAMETER_STRING,
+                description="The robot's base link frame. Used for cartesian motions.",
+                read_only=True,
+            ),
+        ).value
         self.extrinsics_base_frame = self.declare_parameter(
             "extrinsics_base_frame",
             "j2n6s200_end_effector",
@@ -331,6 +353,22 @@ class CalibrateCameraNode(Node):
                 name="wait_before_capture_secs",
                 type=ParameterType.PARAMETER_DOUBLE,
                 description="The time to wait between the end of motion and capturing the image.",
+                read_only=True,
+            ),
+        ).value
+        self.use_planned_motion = self.declare_parameter(
+            "use_planned_motion",
+            False,
+            ParameterDescriptor(
+                name="use_planned_motion",
+                type=ParameterType.PARAMETER_BOOL,
+                description=(
+                    "If true, reach each sweep pose via MoveIt planned motion "
+                    "(IK + plan + execute) instead of real-time Cartesian twist "
+                    "servoing. More robust to kinematic singularities; intended "
+                    "for verifying the sweep in simulation, not for the "
+                    "force-compliant motion used on real hardware."
+                ),
                 read_only=True,
             ),
         ).value
@@ -642,6 +680,92 @@ class CalibrateCameraNode(Node):
         traj = self.moveit2.get_trajectory(future)
         if traj is None:
             self.get_logger().error("Failed to plan to the configuration.")
+            return cleanup(False)
+
+        # Execute the motion
+        self.moveit2.execute(traj)
+        while self.moveit2.query_state() != MoveIt2State.EXECUTING:
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while executing the trajectory.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while executing the trajectory.")
+                return cleanup(False)
+            rate.sleep()
+        self.active_controller = (
+            self.default_moveit2_controller
+        )  # MoveIt2 automatically activates this controller
+        future = self.moveit2.get_execution_future()
+        while not future.done():
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while executing the trajectory.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while executing the trajectory.")
+                return cleanup(False)
+            rate.sleep()
+        result = future.result()
+        if (
+            result.status != GoalStatus.STATUS_SUCCEEDED
+            or result.result.error_code.val != MoveItErrorCodes.SUCCESS
+        ):
+            self.get_logger().error("Failed to execute the trajectory.")
+            return cleanup(False)
+        return cleanup(True)
+
+    def move_end_effector_to_pose_planned(
+        self,
+        pose_stamped: PoseStamped,
+        timeout_secs: float = 10.0,
+        rate: Union[Rate, float] = 10.0,
+    ) -> bool:
+        """
+        Move the end-effector to the specified pose via MoveIt planned motion
+        (IK + plan + execute), rather than real-time Cartesian twist servoing.
+
+        Unlike `move_end_effector_to_pose_cartesian`, this is a single
+        numerically-stable solve followed by a smoothly-interpolated executed
+        trajectory, so it does not suffer from the same near-singularity
+        oscillation that real-time velocity servoing can. It is intended for
+        verifying the sweep's poses (e.g., in simulation), not as a
+        replacement for the force-compliant motion used on real hardware.
+        """
+        # pylint: disable=duplicate-code
+        # This intentionally mirrors move_to_configuration's structure.
+
+        # Configuration for the timeout
+        start_time = self.get_clock().now()
+        timeout = Duration(seconds=timeout_secs)
+        created_rate = False
+        if isinstance(rate, float):
+            rate = self.create_rate(rate)
+            created_rate = True
+
+        def cleanup(retval: bool) -> bool:
+            if created_rate:
+                self.destroy_rate(rate)
+            return retval
+
+        # Re-tare the F/T sensor
+        if not self.re_tare_ft_sensor(timeout_secs=timeout_secs, rate=rate):
+            return cleanup(False)
+
+        # Plan the motion to the pose
+        future = self.moveit2.plan_async(
+            pose=pose_stamped,
+            target_link=self.robot_end_effector_frame,
+        )
+        while not future.done():
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while moving to the pose.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while moving to the pose.")
+                return cleanup(False)
+            rate.sleep()
+        traj = self.moveit2.get_trajectory(future)
+        if traj is None:
+            self.get_logger().error("Failed to plan to the pose.")
             return cleanup(False)
 
         # Execute the motion
@@ -1083,11 +1207,11 @@ class CalibrateCameraNode(Node):
                             target_pose.pose = matrix_to_pose(target_M)
                             target_pose.header.stamp = self.get_clock().now().to_msg()
 
-                            # Move to the target pose. First move linearly, then rotate.
+                            # Move to the target pose.
                             print(
                                 f"Moving to the target pose: {target_pose}", flush=True
                             )
-                            if (
+                            position_changed = (
                                 prev_target_pose is None
                                 or prev_target_pose.pose.position.x
                                 != target_pose.pose.position.x
@@ -1095,13 +1219,8 @@ class CalibrateCameraNode(Node):
                                 != target_pose.pose.position.y
                                 or prev_target_pose.pose.position.z
                                 != target_pose.pose.position.z
-                            ):
-                                self.move_end_effector_to_pose_cartesian(
-                                    target_pose,
-                                    rate=rate,
-                                    only_linear=True,
-                                )
-                            if (
+                            )
+                            orientation_changed = (
                                 prev_target_pose is None
                                 or prev_target_pose.pose.orientation.x
                                 != target_pose.pose.orientation.x
@@ -1111,12 +1230,30 @@ class CalibrateCameraNode(Node):
                                 != target_pose.pose.orientation.z
                                 or prev_target_pose.pose.orientation.w
                                 != target_pose.pose.orientation.w
-                            ):
-                                self.move_end_effector_to_pose_cartesian(
-                                    target_pose,
-                                    rate=rate,
-                                    only_angular=True,
-                                )
+                            )
+                            if self.use_planned_motion:
+                                # Reach the full pose in one planned motion, which
+                                # doesn't suffer from near-singularity oscillation
+                                # the way real-time twist servoing can.
+                                if position_changed or orientation_changed:
+                                    self.move_end_effector_to_pose_planned(
+                                        target_pose,
+                                        rate=rate,
+                                    )
+                            else:
+                                # First move linearly, then rotate.
+                                if position_changed:
+                                    self.move_end_effector_to_pose_cartesian(
+                                        target_pose,
+                                        rate=rate,
+                                        only_linear=True,
+                                    )
+                                if orientation_changed:
+                                    self.move_end_effector_to_pose_cartesian(
+                                        target_pose,
+                                        rate=rate,
+                                        only_angular=True,
+                                    )
                             prev_target_pose = target_pose
 
                             # Wait for the joint states to update

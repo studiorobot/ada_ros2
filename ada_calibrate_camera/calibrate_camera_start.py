@@ -144,13 +144,14 @@ async def main(args: argparse.Namespace, pwd: str) -> None:
     # Determine which screen sessions to start and what commands to run
     screen_sessions = {
         "ft": [
-            "ros2 run forque_sensor_hardware forque_sensor_hardware --ros-args -p host:=ft-sensor-2",
+            "ros2 run forque_sensor_hardware forque_sensor_hardware --ros-args "
+            "-p host:=192.168.1.1 -p local_host:=192.168.1.100 -p udpport:=49152 "
+            "-p local_udpport:=49152 -p countsPerN:=700000 -p countsPerNm:=1000000",
         ],
         "camera": [
-            "ssh nano -t './start_nano.sh'",
-        ],
-        "receiver": [
-            "ros2 launch nano_bridge receiver.launch.xml",
+            "ros2 launch realsense2_camera rs_launch.py camera_namespace:=local "
+            "rgb_camera.profile:='640,480,30' depth_module.profile:='640,480,30' "
+            "align_depth.enable:='true' initial_reset:='true'",
         ],
         "moveit": [
             "Xvfb :5 -screen 0 800x600x24 &" if not args.dev else "",
