@@ -5,15 +5,15 @@ calibrate_camera:
   ros__parameters:
     # Frame names
     robot_end_effector_frame: "forkTip"
-    extrinsics_base_frame: "j2n6s200_end_effector"
+    extrinsics_base_frame: "ada_end_effector"
     arm_joint_names:
-      - "j2n6s200_joint_1"
-      - "j2n6s200_joint_2"
-      - "j2n6s200_joint_3"
-      - "j2n6s200_joint_4"
-      - "j2n6s200_joint_5"
-      - "j2n6s200_joint_6"
-    robot_base_link_frame: "j2n6s200_link_base"
+      - "ada_joint_1"
+      - "ada_joint_2"
+      - "ada_joint_3"
+      - "ada_joint_4"
+      - "ada_joint_5"
+      - "ada_joint_6"
+    robot_base_link_frame: "ada_link_base"
 
     # Whether to run camera calibration online or not
     run_online: true
