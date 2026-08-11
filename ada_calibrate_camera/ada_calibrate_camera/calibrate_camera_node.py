@@ -338,13 +338,13 @@ class CalibrateCameraNode(Node):
         self.starting_arm_configuration = self.declare_parameter(
             "starting_arm_configuration",
             [
-                -2.937532,  # ada_joint_1
-                -0.920922,  # ada_joint_2
-                -0.219908,  # ada_joint_3
-                -0.769714,  # ada_joint_4
-                -3.003279,  # ada_joint_5
-                1.436989,  # ada_joint_6
-                -1.348072,  # ada_joint_7
+                0.000000,  # ada_joint_1
+                -0.1544616388,  # ada_joint_2
+                3.141592654,  # ada_joint_3
+                -1.705186679,  # ada_joint_4
+                -0.00628318530,  # ada_joint_5
+                -0.9257226353,  # ada_joint_6
+                1.570796327,  # ada_joint_7
             ],
             ParameterDescriptor(
                 name="starting_arm_configuration",
