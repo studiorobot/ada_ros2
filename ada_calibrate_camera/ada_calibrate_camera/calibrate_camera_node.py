@@ -19,7 +19,7 @@ from action_msgs.msg import GoalStatus
 from controller_manager_msgs.srv import SwitchController
 import cv2
 from cv_bridge import CvBridge
-from geometry_msgs.msg import TwistStamped, Vector3
+from geometry_msgs.msg import Point, Quaternion, TwistStamped, Vector3
 from moveit_msgs.msg import MoveItErrorCodes
 import numpy as np
 from pymoveit2 import MoveIt2, MoveIt2State
@@ -104,6 +104,12 @@ class CalibrateCameraNode(Node):
             group_name="manipulator",
             callback_group=callback_group,
         )
+        # The pymoveit2 defaults (0.5s, 5 attempts) are tuned for easy, everyday
+        # motions. The calibration sweep intentionally asks for poses near the
+        # wrist's kinematic singularity, where both IK and RRT-style planning
+        # need substantially more time/attempts to find a solution.
+        self.moveit2.allowed_planning_time = 5.0
+        self.moveit2.num_planning_attempts = 20
 
         # Create the charuco detector
         self.charuco_detector = CharucoDetector(
@@ -355,6 +361,22 @@ class CalibrateCameraNode(Node):
                 name="wait_before_capture_secs",
                 type=ParameterType.PARAMETER_DOUBLE,
                 description="The time to wait between the end of motion and capturing the image.",
+                read_only=True,
+            ),
+        ).value
+        self.use_planned_motion = self.declare_parameter(
+            "use_planned_motion",
+            False,
+            ParameterDescriptor(
+                name="use_planned_motion",
+                type=ParameterType.PARAMETER_BOOL,
+                description=(
+                    "If true, reach each sweep pose via MoveIt planned motion "
+                    "(IK + plan + execute) instead of real-time Cartesian twist "
+                    "servoing. More robust to kinematic singularities; intended "
+                    "for verifying the sweep in simulation, not for the "
+                    "force-compliant motion used on real hardware."
+                ),
                 read_only=True,
             ),
         ).value
@@ -699,6 +721,92 @@ class CalibrateCameraNode(Node):
             return cleanup(False)
         return cleanup(True)
 
+    def move_end_effector_to_pose_planned(
+        self,
+        pose_stamped: PoseStamped,
+        timeout_secs: float = 10.0,
+        rate: Union[Rate, float] = 10.0,
+    ) -> bool:
+        """
+        Move the end-effector to the specified pose via MoveIt planned motion
+        (IK + plan + execute), rather than real-time Cartesian twist servoing.
+
+        Unlike `move_end_effector_to_pose_cartesian`, this is a single
+        numerically-stable solve followed by a smoothly-interpolated executed
+        trajectory, so it does not suffer from the same near-singularity
+        oscillation that real-time velocity servoing can. It is intended for
+        verifying the sweep's poses (e.g., in simulation), not as a
+        replacement for the force-compliant motion used on real hardware.
+        """
+        # pylint: disable=duplicate-code
+        # This intentionally mirrors move_to_configuration's structure.
+
+        # Configuration for the timeout
+        start_time = self.get_clock().now()
+        timeout = Duration(seconds=timeout_secs)
+        created_rate = False
+        if isinstance(rate, float):
+            rate = self.create_rate(rate)
+            created_rate = True
+
+        def cleanup(retval: bool) -> bool:
+            if created_rate:
+                self.destroy_rate(rate)
+            return retval
+
+        # Re-tare the F/T sensor
+        if not self.re_tare_ft_sensor(timeout_secs=timeout_secs, rate=rate):
+            return cleanup(False)
+
+        # Plan the motion to the pose
+        future = self.moveit2.plan_async(
+            pose=pose_stamped,
+            target_link=self.robot_end_effector_frame,
+        )
+        while not future.done():
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while moving to the pose.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while moving to the pose.")
+                return cleanup(False)
+            rate.sleep()
+        traj = self.moveit2.get_trajectory(future)
+        if traj is None:
+            self.get_logger().error("Failed to plan to the pose.")
+            return cleanup(False)
+
+        # Execute the motion
+        self.moveit2.execute(traj)
+        while self.moveit2.query_state() != MoveIt2State.EXECUTING:
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while executing the trajectory.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while executing the trajectory.")
+                return cleanup(False)
+            rate.sleep()
+        self.active_controller = (
+            self.default_moveit2_controller
+        )  # MoveIt2 automatically activates this controller
+        future = self.moveit2.get_execution_future()
+        while not future.done():
+            if not rclpy.ok():
+                self.get_logger().error("Interrupted while executing the trajectory.")
+                return cleanup(False)
+            if self.get_clock().now() - start_time > timeout:
+                self.get_logger().error("Timeout while executing the trajectory.")
+                return cleanup(False)
+            rate.sleep()
+        result = future.result()
+        if (
+            result.status != GoalStatus.STATUS_SUCCEEDED
+            or result.result.error_code.val != MoveItErrorCodes.SUCCESS
+        ):
+            self.get_logger().error("Failed to execute the trajectory.")
+            return cleanup(False)
+        return cleanup(True)
+
     def transform_stamped_msg(
         self,
         stamped_msg: Union[PoseStamped, TwistStamped],
@@ -843,11 +951,103 @@ class CalibrateCameraNode(Node):
         else:
             pose_stamped_base = pose_stamped
 
+        # If the required rotation is close to 180 degrees, the axis-angle
+        # representation used by pose_to_twist is numerically unstable there:
+        # a tiny perturbation can flip the rotation axis on any given control
+        # tick, which do_not_oscillate then latches onto and permanently
+        # zeroes, freezing the arm mid-rotation. Route through a halfway
+        # waypoint (computed once, up front) so neither leg ever has to
+        # resolve a near-singular rotation.
+        if not only_linear:
+            pose_stamped_base.header.stamp = self.get_clock().now().to_msg()
+            pose_stamped_ee = self.transform_stamped_msg(
+                pose_stamped_base,
+                self.moveit2.end_effector_name,
+                self.get_remaining_time(start_time, timeout_secs),
+            )
+            if pose_stamped_ee is None:
+                return cleanup(False)
+            angular_error = R.from_quat(
+                ros2_numpy.numpify(pose_stamped_ee.pose.orientation)
+            ).as_rotvec()
+            if np.linalg.norm(angular_error) > np.radians(170):
+                halfway_ee = PoseStamped()
+                halfway_ee.header.frame_id = self.moveit2.end_effector_name
+                halfway_ee.header.stamp = self.get_clock().now().to_msg()
+                if not only_angular:
+                    halfway_ee.pose.position = ros2_numpy.msgify(
+                        Point,
+                        ros2_numpy.numpify(pose_stamped_ee.pose.position) / 2.0,
+                    )
+                halfway_ee.pose.orientation = ros2_numpy.msgify(
+                    Quaternion,
+                    R.from_rotvec(angular_error / 2.0).as_quat(),
+                )
+                halfway_base = self.transform_stamped_msg(
+                    halfway_ee,
+                    self.moveit2.base_link_name,
+                    self.get_remaining_time(start_time, timeout_secs),
+                )
+                if halfway_base is None:
+                    return cleanup(False)
+                if not self._servo_to_pose_cartesian(
+                    halfway_base,
+                    start_time,
+                    timeout,
+                    timeout_secs,
+                    rate,
+                    linear_threshold,
+                    angular_threshold,
+                    only_linear,
+                    only_angular,
+                    do_not_oscillate,
+                    verbose,
+                ):
+                    return cleanup(False)
+
+        return cleanup(
+            self._servo_to_pose_cartesian(
+                pose_stamped_base,
+                start_time,
+                timeout,
+                timeout_secs,
+                rate,
+                linear_threshold,
+                angular_threshold,
+                only_linear,
+                only_angular,
+                do_not_oscillate,
+                verbose,
+            )
+        )
+
+    def _servo_to_pose_cartesian(
+        self,
+        pose_stamped_base: PoseStamped,
+        start_time: Time,
+        timeout: Duration,
+        timeout_secs: float,
+        rate: Rate,
+        linear_threshold: float,
+        angular_threshold: float,
+        only_linear: bool,
+        only_angular: bool,
+        do_not_oscillate: bool,
+        verbose: bool,
+    ) -> bool:
+        """
+        Servo the end-effector towards pose_stamped_base (a target expressed
+        in the base frame) until it is reached or the start_time/timeout
+        budget expires. Does not zero the twist publisher on exit; callers
+        own that (since they may chain multiple legs back-to-back).
+        """
+        # pylint: disable=too-many-arguments, too-many-locals
+
         # Move towards the pose until it is reached or timeout
         signs = None
         while self.get_clock().now() - start_time < timeout:
             if not rclpy.ok():
-                return cleanup(False)
+                return False
 
             # Convert the target pose to the end-effector frame
             pose_stamped_base.header.stamp = self.get_clock().now().to_msg()
@@ -859,7 +1059,7 @@ class CalibrateCameraNode(Node):
             if verbose:
                 print(f"Pose in end-effector frame: {pose_stamped_ee}", flush=True)
             if pose_stamped_ee is None:
-                return cleanup(False)
+                return False
 
             # Check if the pose is reached
             if only_angular:
@@ -877,7 +1077,7 @@ class CalibrateCameraNode(Node):
                     ).as_rotvec()
                 )
             if position_diff < linear_threshold and angular_diff < angular_threshold:
-                return cleanup(True)
+                return True
 
             # Compute the twist required to move the end effector to the target pose
             twist_stamped = pose_to_twist(
@@ -925,7 +1125,7 @@ class CalibrateCameraNode(Node):
             if verbose:
                 print(f"Twist in base frame{twist_stamped_base}", flush=True)
             if twist_stamped_base is None:
-                return cleanup(False)
+                return False
 
             # Publish the twist
             self.twist_pub.publish(twist_stamped_base)
@@ -937,13 +1137,13 @@ class CalibrateCameraNode(Node):
                 and np.linalg.norm(ros2_numpy.numpify(twist_stamped_base.twist.angular))
                 < 1.0e-6
             ):
-                return cleanup(True)
+                return True
 
             # Sleep
             rate.sleep()
 
         self.get_logger().error("Timeout while moving the end-effector to the pose.")
-        return cleanup(False)
+        return False
 
     def camera_info_callback(self, msg: CameraInfo):
         """
@@ -1071,9 +1271,14 @@ class CalibrateCameraNode(Node):
             lateral_radius = 0.10  # meters
             lateral_intervals = 5
             wait_before_capture = Duration(seconds=self.wait_before_capture_secs)
-            # In practice, modifying pitch resulted in too much variation in z, which hindered reliability.
-            # This is kept here for legacy purposes.
-            pitches = [0.0]
+            # cv2.calibrateHandEye (AX=XB) requires rotations about at least two
+            # non-parallel axes to be well-posed (Tsai & Lenz 1989); with d_yaw
+            # alone, every sample rotates about the same fixed EE-frame Z axis,
+            # which is rank-deficient and produces degenerate calibrations. A
+            # previous, larger pitch range caused too much variation in z and
+            # was disabled; this smaller range aims to restore axis diversity
+            # without reintroducing that reliability problem.
+            pitches = [-np.radians(15.0), 0.0, np.radians(15.0)]
             prev_target_pose = None
             for d_z in [0.0, 0.05, -0.05]:
                 for lateral_i in range(-1, lateral_intervals):
@@ -1107,11 +1312,11 @@ class CalibrateCameraNode(Node):
                             target_pose.pose = matrix_to_pose(target_M)
                             target_pose.header.stamp = self.get_clock().now().to_msg()
 
-                            # Move to the target pose. First move linearly, then rotate.
+                            # Move to the target pose.
                             print(
                                 f"Moving to the target pose: {target_pose}", flush=True
                             )
-                            if (
+                            position_changed = (
                                 prev_target_pose is None
                                 or prev_target_pose.pose.position.x
                                 != target_pose.pose.position.x
@@ -1119,13 +1324,8 @@ class CalibrateCameraNode(Node):
                                 != target_pose.pose.position.y
                                 or prev_target_pose.pose.position.z
                                 != target_pose.pose.position.z
-                            ):
-                                self.move_end_effector_to_pose_cartesian(
-                                    target_pose,
-                                    rate=rate,
-                                    only_linear=True,
-                                )
-                            if (
+                            )
+                            orientation_changed = (
                                 prev_target_pose is None
                                 or prev_target_pose.pose.orientation.x
                                 != target_pose.pose.orientation.x
@@ -1135,13 +1335,38 @@ class CalibrateCameraNode(Node):
                                 != target_pose.pose.orientation.z
                                 or prev_target_pose.pose.orientation.w
                                 != target_pose.pose.orientation.w
-                            ):
-                                self.move_end_effector_to_pose_cartesian(
-                                    target_pose,
-                                    rate=rate,
-                                    only_angular=True,
-                                )
+                            )
+                            move_succeeded = True
+                            if self.use_planned_motion:
+                                # Reach the full pose in one planned motion, which
+                                # doesn't suffer from near-singularity oscillation
+                                # the way real-time twist servoing can.
+                                if position_changed or orientation_changed:
+                                    move_succeeded = self.move_end_effector_to_pose_planned(
+                                        target_pose,
+                                        rate=rate,
+                                    )
+                            else:
+                                # First move linearly, then rotate.
+                                if position_changed:
+                                    move_succeeded = self.move_end_effector_to_pose_cartesian(
+                                        target_pose,
+                                        rate=rate,
+                                        only_linear=True,
+                                    )
+                                if orientation_changed and move_succeeded:
+                                    move_succeeded = self.move_end_effector_to_pose_cartesian(
+                                        target_pose,
+                                        rate=rate,
+                                        only_angular=True,
+                                    )
                             prev_target_pose = target_pose
+
+                            if not move_succeeded:
+                                self.get_logger().error(
+                                    "Failed to reach the target pose. Skipping this sample."
+                                )
+                                continue
 
                             # Wait for the joint states to update
                             print(

@@ -5,7 +5,7 @@ calibrate_camera:
   ros__parameters:
     # Frame names
     robot_end_effector_frame: "forkTip"
-    extrinsics_base_frame: "ada_end_effector"
+    extrinsics_base_frame: "ada_end_effector_link"
     arm_joint_names:
       - "ada_joint_1"
       - "ada_joint_2"
@@ -13,7 +13,13 @@ calibrate_camera:
       - "ada_joint_4"
       - "ada_joint_5"
       - "ada_joint_6"
-    robot_base_link_frame: "ada_link_base"
+      - "ada_joint_7"
+    robot_base_link_frame: "ada_base_link"
+    # Use MoveIt planned motion (IK + plan + execute) instead of real-time
+    # Cartesian twist servoing to reach each sweep pose. More robust to
+    # kinematic singularities/joint limits; intended for verifying the sweep
+    # in simulation, not for the force-compliant motion used on real hardware.
+    use_planned_motion: true
 
     # Whether to run camera calibration online or not
     run_online: true
